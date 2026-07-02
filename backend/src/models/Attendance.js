@@ -1,2 +1,33 @@
-// Mongoose schema and model for Attendance.
-// TODO: define fields, references, and validation, then export the model.
+const mongoose = require('mongoose');
+const { Schema } = mongoose;
+
+const attendanceRecordSchema = new Schema({
+  studentId: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  status: {
+    type: String,
+    enum: ['present', 'absent'],
+    required: true
+  }
+}, { _id: false });
+
+const attendanceSchema = new Schema({
+  courseId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Course',
+    required: [true, 'Course is required']
+  },
+  sessionDate: {
+    type: Date,
+    required: [true, 'Session date is required']
+  },
+  records: [attendanceRecordSchema]
+});
+
+// One attendance document per course per session
+attendanceSchema.index({ courseId: 1, sessionDate: 1 }, { unique: true });
+
+module.exports = mongoose.model('Attendance', attendanceSchema);

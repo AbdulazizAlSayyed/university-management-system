@@ -330,8 +330,8 @@ export const attendance = [
 export const notifications = [
   { id: 'n-1', userId: 'u-stu-1', type: 'grade', title: 'New grade posted', body: 'Your grade for "Build a REST API" is available: 92/100.', createdAt: '2026-09-22T10:15:00', read: false, link: '/student/grades' },
   { id: 'n-2', userId: 'u-stu-1', type: 'assignment', title: 'New assignment', body: 'CS310: "Final MERN Project" is due Dec 10.', createdAt: '2026-09-20T09:00:00', read: false, link: '/student/assignments' },
-  { id: 'n-3', userId: 'u-stu-1', type: 'material', title: 'New material uploaded', body: 'CS310: "React Components & Hooks" is now available.', createdAt: '2026-09-15T14:30:00', read: true, link: '/student/courses/c-cs310' },
-  { id: 'n-4', userId: 'u-stu-1', type: 'announcement', title: 'Course announcement', body: 'CS310: Assignment 1 deadline extended to September 20.', createdAt: '2026-09-14T08:00:00', read: true, link: '/student/courses/c-cs310' },
+  { id: 'n-3', userId: 'u-stu-1', type: 'material', title: 'New material uploaded', body: 'CS310: "React Components & Hooks" is now available.', createdAt: '2026-09-15T14:30:00', read: true, link: '/student/courses/c-cs310?tab=materials' },
+  { id: 'n-4', userId: 'u-stu-1', type: 'announcement', title: 'Course announcement', body: 'CS310: Assignment 1 deadline extended to September 20.', createdAt: '2026-09-14T08:00:00', read: true, link: '/student/courses/c-cs310?tab=announcements' },
   { id: 'n-5', userId: 'u-prof-1', type: 'submission', title: 'New submission', body: 'Daniel Garcia submitted "Build a REST API".', createdAt: '2026-09-20T16:45:00', read: false, link: '/professor/grading' },
   { id: 'n-6', userId: 'u-prof-1', type: 'submission', title: 'New submission', body: 'Sophia Martinez submitted "Build a REST API".', createdAt: '2026-09-18T12:10:00', read: false, link: '/professor/grading' },
   { id: 'n-7', userId: 'u-prof-1', type: 'announcement', title: 'System announcement', body: 'Midterm exam schedule has been published.', createdAt: '2026-10-01T09:00:00', read: true, link: '/professor/dashboard' },

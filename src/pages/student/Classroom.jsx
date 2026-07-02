@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useState, useMemo, useEffect } from 'react'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import {
   ArrowLeft, FileText, Megaphone, ClipboardList, Download, Link as LinkIcon,
   Clock, Upload, CheckCircle2, Pin, Award,
@@ -16,11 +16,18 @@ import { fullName, formatDate, timeAgo, daysUntil, fileTypeMeta, classNames } fr
 export default function StudentClassroom() {
   const { courseId } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const data = useData()
   const { currentUser } = useAuth()
   const { toast } = useToast()
   const course = data.courses.find((c) => c.id === courseId)
-  const [tab, setTab] = useState('materials')
+  const requestedTab = new URLSearchParams(location.search).get('tab')
+  const [tab, setTab] = useState(() => {
+    if (requestedTab && ['materials', 'announcements', 'assignments'].includes(requestedTab)) {
+      return requestedTab
+    }
+    return 'materials'
+  })
   const [submitFor, setSubmitFor] = useState(null)
   const [fileName, setFileName] = useState('')
 
@@ -33,11 +40,24 @@ export default function StudentClassroom() {
   const courseAssignments = data.assignments.filter((a) => a.courseId === courseId)
   const mySub = (aid) => data.submissions.find((s) => s.assignmentId === aid && s.studentId === currentUser.id)
 
+  useEffect(() => {
+    if (requestedTab && ['materials', 'announcements', 'assignments'].includes(requestedTab)) {
+      setTab(requestedTab)
+    } else {
+      setTab('materials')
+    }
+  }, [requestedTab])
+
   const byWeek = useMemo(() => {
     const g = {}
     materials.forEach((m) => { (g[m.week] = g[m.week] || []).push(m) })
     return g
   }, [materials])
+
+  const handleTabChange = (nextTab) => {
+    setTab(nextTab)
+    navigate({ pathname: `/student/courses/${courseId}`, search: `?tab=${nextTab}` }, { replace: true })
+  }
 
   if (!course || !isEnrolled) {
     return <Card><EmptyState icon={FileText} title="Course unavailable" message="You are not enrolled in this course." action={<Button onClick={() => navigate('/student/courses')}>Back to my courses</Button>} /></Card>
@@ -79,7 +99,7 @@ export default function StudentClassroom() {
         </div>
       </Card>
 
-      <Tabs tabs={tabs} active={tab} onChange={setTab} />
+      <Tabs tabs={tabs} active={tab} onChange={handleTabChange} />
 
       <div className="mt-6">
         {/* Materials */}

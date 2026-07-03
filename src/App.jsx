@@ -5,6 +5,7 @@ import AppLayout from './components/layout/AppLayout'
 
 // Auth
 import Login from './pages/auth/Login'
+import Signup from './pages/auth/Signup'
 import ForgotPassword from './pages/auth/ForgotPassword'
 
 // Shared
@@ -53,6 +54,7 @@ export default function App() {
     <Routes>
       {/* Public */}
       <Route path="/login" element={<Login />} />
+      <Route path="/signup" element={<Signup />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
 
       {/* Admin */}

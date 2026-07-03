@@ -25,20 +25,19 @@ export default function Login() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const doLogin = (idf, pw) => {
+  const doLogin = async (email, password) => {
     setError('')
     setLoading(true)
-    // brief delay to simulate a request + show loading state
-    setTimeout(() => {
-      const res = login(idf, pw)
-      setLoading(false)
-      if (res.ok) {
-        toast(`Welcome back, ${res.user.firstName}!`, 'success')
-        navigate(`/${res.user.role}/dashboard`, { replace: true })
-      } else {
-        setError(res.error)
-      }
-    }, 500)
+    
+    try {
+      const user = await login(email, password);
+      setLoading(false);
+      toast(`Welcome back, ${user.firstName}!`, 'success');
+      navigate(`/${user.role}/dashboard`, { replace: true });
+    } catch (err) {
+      setLoading(false);
+      setError(err.response?.data?.message || err.message || 'Invalid email or password.');
+    }
   }
 
   const onSubmit = (e) => {
@@ -123,7 +122,7 @@ export default function Login() {
             </div>
           )}
 
-          <form onSubmit={onSubmit} className="mt-6 space-y-4">
+          <form onSubmit={onSubmit} className="mt-6 space-y-4" autoComplete="off">
             <FormField label="Email or Username">
               <div className="relative">
                 <Mail size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -132,7 +131,7 @@ export default function Login() {
                   placeholder="you@university.edu"
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  autoComplete="username"
+                  autoComplete="new-email"
                 />
               </div>
             </FormField>
@@ -146,7 +145,7 @@ export default function Login() {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  autoComplete="current-password"
+                  autoComplete="new-password"
                 />
                 <button
                   type="button"
@@ -173,6 +172,14 @@ export default function Login() {
               {!loading && <ArrowRight size={18} />}
             </Button>
           </form>
+
+          {/* 💡 Navigation footer to redirect users to signup */}
+          <p className="mt-5 text-center text-sm text-slate-600">
+            Don't have an account?{' '}
+            <Link to="/signup" className="font-semibold text-brand-600 hover:text-brand-700 transition-colors">
+              Create an account
+            </Link>
+          </p>
 
           {/* Demo accounts */}
           <div className="mt-8">

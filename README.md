@@ -1,126 +1,106 @@
-# UniHub — University Management System (Frontend)
+# UniHub - University Management System (MERN)
 
-A production-style **React + Tailwind CSS** frontend for a University Management System (UMS), built to the attached BRD. It provides three fully-featured, role-based portals — **Admin**, **Professor**, and **Student** — with a clean, modern academic (blue/indigo) design.
+A full-stack University Management System built with the MERN stack
+(MongoDB, Express, React, Node.js). It provides three role-based portals -
+Admin, Professor, and Student - with a clean, modern academic (blue/indigo) UI.
 
-> This is a **frontend-only** build. All data is realistic **mock data** held in memory (React Context) and resets on refresh. No backend/database is required to run it.
+The project has two parts:
 
----
+- Frontend (this repo root): React + Tailwind CSS client - DONE and runnable.
+- Backend (`backend/` folder): Node.js + Express + MongoDB REST API - structure scaffolded.
 
-## Demo Login Accounts
+## Status
 
-Open the app and either type the credentials or click a demo card on the login screen to sign in instantly.
+- [x] Frontend: all pages for Admin, Professor, and Student (React + Tailwind), fully clickable with mock data
+- [x] Git repository on GitHub
+- [ ] Backend: role-based folder structure ready; implementation in progress
+- [ ] Frontend connected to the real API
+- [ ] Deployment
 
-| Role | Username | Email | Password |
-|------|----------|-------|----------|
-| **Admin** | `admin` | `admin@university.edu` | `Admin@123` |
-| **Professor** | `j.smith` | `professor@university.edu` | `Prof@123` |
-| **Student** | `s.jane` | `student@university.edu` | `Student@123` |
+## Demo Login Accounts (frontend)
 
-You can sign in with **either** the username or the email. (Accounts marked *pending* are blocked at login until an Admin activates them, matching the BRD.)
+| Role      | Username | Email                    | Password    |
+|-----------|----------|--------------------------|-------------|
+| Admin     | admin    | admin@university.edu     | Admin@123   |
+| Professor | j.smith  | professor@university.edu | Prof@123    |
+| Student   | s.jane   | student@university.edu   | Student@123 |
 
----
-
-## Getting Started
-
-```bash
-# 1. Install dependencies
-npm install
-
-# 2. Start the dev server (opens http://localhost:5173)
-npm run dev
-
-# 3. Production build / preview
-npm run build
-npm run preview
-```
-
-Requires Node.js 18+ (built and tested on Node 22).
-
----
+Sign in with the username or the email, or click a demo card on the login screen
+to sign in instantly. (Accounts marked "pending" are blocked until an Admin activates them.)
 
 ## Tech Stack
 
-- **React 18** + **Vite** — fast dev server and build
-- **React Router v6** — role-based routing and protected routes
-- **Tailwind CSS** — utility-first styling with a custom brand (indigo) theme
-- **lucide-react** — icon set
-- Lightweight **inline SVG/CSS charts** (no heavy chart dependency)
-- **Context API** — mock auth, in-memory data store, and toasts
+- Frontend: React 18, Vite, React Router v6, Tailwind CSS, lucide-react
+- Backend: Node.js, Express, MongoDB (Mongoose), JWT auth, bcrypt
 
----
+## Getting Started
 
-## Features by Role
+### Frontend (project root)
 
-### Admin
+```bash
+npm install
+npm run dev        # http://localhost:5173
+npm run build      # production build into dist/
+```
 
-- Dashboard with KPIs, enrollment chart, account-status donut, pending activations, and activity feed
-- User Management — create / edit / delete, activate / deactivate, search and filter by role/status
-- Course Management — create / edit / delete, assign professors, set capacity
-- Student Enrollment — enroll / remove students with live capacity tracking
-- Exam Scheduling — full CRUD timetable
-- Academic Calendar — semesters, deadlines, exams, holidays
-- System Announcements — post platform-wide notices
-- Audit Log — searchable record of create/update/delete actions
+### Backend (backend/ folder)
 
-### Professor
-
-- Dashboard — assigned courses, pending grading, upcoming deadlines
-- Classroom (tabbed) — Materials, Roster, Announcements, Assignments, Attendance, Grades
-- Upload materials (PDF/PPTX/DOCX/MP4/links) organized by week
-- Create assignments with deadlines
-- Grade submissions with scores and written feedback
-- Final grade entry (auto letter grade and GPA points)
-- Attendance tracking with per-student rates
-- Course announcements
-
-### Student
-
-- Dashboard — enrolled courses, GPA, pending work, upcoming exams, announcements, notifications
-- Course Catalog — browse and enroll / drop (respects capacity)
-- Classroom — view/download materials, read announcements, submit assignments
-- Assignments — submit files, track status, view scores and feedback
-- Grades and GPA — per-course breakdown
-- Transcript — official transcript, download/print as PDF
-- Exam Timetable — personalized schedule
-- Notifications
-
-### Shared
-
-- Secure mock login with an account-activation gate and a "forgot password" flow
-- Profile management and change password
-- Responsive layout (desktop and tablet), sidebar and topbar, notifications, toasts
-- Search, filtering, loading/empty states, form validation
-
----
+```bash
+cd backend
+npm install
+# copy .env.example to .env and fill in the values
+npm run dev        # http://localhost:5000
+```
 
 ## Project Structure
 
+Frontend (root):
+
 ```
 src/
-├── components/
-│   ├── ui/            # Reusable UI primitives (Button, Card, Modal, Table, etc.)
-│   ├── layout/        # Sidebar, Topbar, AppLayout, ProtectedRoute, nav config
-│   └── CourseCard.jsx
-├── context/           # AuthContext, DataContext (mock store), ToastContext
-├── data/              # mockData.js (seed users, courses, enrollments, ...)
-├── pages/
-│   ├── auth/          # Login, ForgotPassword
-│   ├── admin/         # Dashboard, Users, Courses, Enrollment, Exams, Calendar, Announcements, Audit
-│   ├── professor/     # Dashboard, Courses, Classroom, Assignments, Grading, Grades, Attendance, Announcements
-│   ├── student/       # Dashboard, Catalog, Courses, Classroom, Assignments, Grades, Transcript, Exams, Notifications
-│   ├── Profile.jsx    # Shared profile page
-│   └── NotFound.jsx
-├── utils/             # helpers (dates, GPA, grades, formatting)
-├── App.jsx            # Routes
-└── main.jsx           # Entry and providers
-
-docs/                  # BRD document and concept sketch
+  components/    UI primitives + layout (Sidebar, Topbar, ProtectedRoute)
+  context/       AuthContext, DataContext (mock store), ToastContext
+  data/          mockData.js (seed data)
+  pages/         auth/ , admin/ , professor/ , student/ , Profile, NotFound
+  utils/         helpers (dates, GPA, grades)
+  App.jsx        routes
+  main.jsx       entry + providers
 ```
 
----
+Backend (backend/), split by role:
+
+```
+src/
+  config/          env + MongoDB connection
+  models/          SHARED Mongoose schemas (used by all roles):
+                   User, Course, Enrollment, Assignment, Submission, Grade,
+                   Exam, Announcement, Attendance, Material, Notification, AuditLog
+  middleware/      auth (JWT), role (RBAC), validate, error, notFound
+  utils/           ApiError, asyncHandler, generateToken, logger
+  routes/index.js  mounts /api/auth, /api/admin, /api/professor, /api/student
+  modules/         role-based modules (each: routes + controller + service)
+    auth/          shared login / register / me / password  (all roles)
+    admin/         users, courses, enrollment, exams, calendar, announcements, audit, stats
+    professor/     courses, materials, assignments, grading, grades, attendance, announcements
+    student/       catalog, enrollment, classroom, submissions, grades, transcript, exams, notifications
+```
+
+## API Overview (planned)
+
+```
+POST /api/auth/login , /api/auth/register , GET /api/auth/me
+/api/admin/...        (admin only)
+/api/professor/...    (professor only)
+/api/student/...      (student only)
+```
+
+Every request first passes JWT verification, then a role guard
+(authorize("admin" | "professor" | "student")) protects each module.
 
 ## Notes
 
-- Data is in-memory: creating users, enrolling, submitting, grading, etc. all work live during a session, then reset on page refresh. This makes every button and navigation flow interactive.
-- The design theme colors live in `tailwind.config.js` (the `brand` palette) and are easy to re-skin.
-- Optional next step: connect a real MERN backend by replacing the functions in `src/context/DataContext.jsx` with API calls.
+- Frontend data is currently in-memory mock data (resets on refresh). It will be
+  replaced by real API calls once the backend is implemented.
+- The design theme colors live in tailwind.config.js (the "brand" palette).
+- Models stay shared (not split per role) because all roles use the same data;
+  only the routes/controllers/services are split by role.

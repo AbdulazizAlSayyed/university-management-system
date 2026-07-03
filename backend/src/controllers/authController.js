@@ -5,10 +5,11 @@ const User = require('../models/User');
 // SIGNUP
 exports.signup = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    // 💡 Updated to destructure firstName and lastName
+    const { firstName, lastName, email, password, role } = req.body;
 
     // Check required fields
-    if (!name || !email || !password || !role) {
+    if (!firstName || !lastName || !email || !password || !role) {
       return res.status(400).json({ message: 'All fields are required' });
     }
 
@@ -21,13 +22,29 @@ exports.signup = async (req, res) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create new user
-    const newUser = await User.create({
-      name,
+    // Instantiate new user document
+    const newUser = new User({
+      firstName,
+      lastName,
       email,
       password: hashedPassword,
       role
     });
+
+    // 💡 Apply conditional logic to match image_dad4cb.jpg rules
+    if (role === 'admin') {
+      newUser.enrolledCourses = undefined;
+      newUser.assignedCourses = undefined;
+    } else if (role === 'professor') {
+      newUser.assignedCourses = []; // Professors only track courses they teach
+      newUser.enrolledCourses = undefined;
+    } else if (role === 'student') {
+      newUser.enrolledCourses = []; // Students only track courses they take
+      newUser.assignedCourses = undefined;
+    }
+
+    // Save the finalized document to MongoDB
+    await newUser.save();
 
     // Generate JWT so they are instantly logged in upon registration
     const token = jwt.sign(
@@ -41,7 +58,8 @@ exports.signup = async (req, res) => {
       token, // Token is sent right back to the frontend
       user: {
         id: newUser._id,
-        name: newUser.name,
+        firstName: newUser.firstName,
+        lastName: newUser.lastName,
         email: newUser.email,
         role: newUser.role
       }
@@ -85,7 +103,8 @@ exports.login = async (req, res) => {
       token,
       user: {
         id: user._id,
-        name: user.name,
+        firstName: user.firstName,
+        lastName: user.lastName,
         email: user.email,
         role: user.role
       }

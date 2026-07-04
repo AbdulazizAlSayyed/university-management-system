@@ -1,1 +1,7 @@
-// ApiError: custom Error subclass carrying an HTTP statusCode.
+// Custom error carrying an HTTP status code.
+export default class ApiError extends Error {
+  constructor(statusCode, message) {
+    super(message)
+    this.statusCode = statusCode
+  }
+}

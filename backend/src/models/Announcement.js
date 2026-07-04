@@ -1,44 +1,21 @@
-const mongoose = require('mongoose');
-const { Schema } = mongoose;
+import mongoose from 'mongoose'
+const { Schema } = mongoose
 
-const announcementSchema = new Schema({
-  courseId: {
-    type: Schema.Types.ObjectId,
-    ref: 'Course' // omitted = system-wide announcement
+const announcementSchema = new Schema(
+  {
+    scope: { type: String, enum: ['system', 'course'], default: 'system' },
+    courseId: { type: Schema.Types.ObjectId, ref: 'Course', default: null },
+    authorId: { type: Schema.Types.ObjectId, ref: 'User' },
+    title: { type: String, required: true, trim: true },
+    body: { type: String, required: true },
+    pinned: { type: Boolean, default: false },
   },
-  postedByAdminId: {
-    type: Schema.Types.ObjectId,
-    ref: 'User' // set for system-wide announcements
-  },
-  postedByProfessorId: {
-    type: Schema.Types.ObjectId,
-    ref: 'User' // set for course-specific announcements
-  },
-  title: {
-    type: String,
-    required: [true, 'Title is required'],
-    trim: true
-  },
-  message: {
-    type: String,
-    required: [true, 'Message is required'],
-    trim: true
-  }
-}, {
-  timestamps: { createdAt: true, updatedAt: false }
-});
+  { timestamps: true }
+)
 
-// Enforce "exactly one poster type" at the application layer,
-// since Mongoose validators run per-field, not cross-field, by default.
-announcementSchema.pre('validate', function (next) {
-  const hasAdmin = !!this.postedByAdminId;
-  const hasProfessor = !!this.postedByProfessorId;
+announcementSchema.set('toJSON', {
+  virtuals: true,
+  transform(doc, ret) { delete ret._id; delete ret.__v; return ret },
+})
 
-  if (hasAdmin === hasProfessor) {
-    // both set, or neither set — invalid either way
-    return next(new Error('Announcement must be posted by exactly one of: admin or professor'));
-  }
-  next();
-});
-
-module.exports = mongoose.model('Announcement', announcementSchema);
+export default mongoose.model('Announcement', announcementSchema)

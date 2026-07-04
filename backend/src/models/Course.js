@@ -1,59 +1,26 @@
-const mongoose = require('mongoose');
-const { Schema } = mongoose;
+import mongoose from 'mongoose'
+const { Schema } = mongoose
 
-const materialSchema = new Schema({
-  title: {
-    type: String,
-    required: [true, 'Material title is required']
+const courseSchema = new Schema(
+  {
+    code: { type: String, required: true, unique: true, uppercase: true, trim: true },
+    name: { type: String, required: true, trim: true },
+    description: { type: String, default: '' },
+    credits: { type: Number, default: 3, min: 1, max: 6 },
+    capacity: { type: Number, default: 30, min: 1 },
+    professorId: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+    semester: { type: String, default: 'Fall 2026' },
+    schedule: { type: String, default: '' },
+    room: { type: String, default: '' },
+    color: { type: String, default: 'bg-brand-500' },
+    status: { type: String, enum: ['active', 'archived'], default: 'active' },
   },
-  weekTopic: {
-    type: String,
-    required: [true, 'Week or topic is required']
-  },
-  fileUrl: {
-    type: String,
-    required: [true, 'File URL is required']
-  },
-  uploadedAt: {
-    type: Date,
-    default: Date.now
-  }
-}, { _id: true });
+  { timestamps: true }
+)
 
-const courseSchema = new Schema({
-  title: {
-    type: String,
-    required: [true, 'Course title is required'],
-    trim: true
-  },
-  code: {
-    type: String,
-    required: [true, 'Course code is required'],
-    unique: true,
-    trim: true,
-    uppercase: true
-  },
-  description: {
-    type: String,
-    trim: true
-  },
-  capacity: {
-    type: Number,
-    required: [true, 'Capacity is required'],
-    min: 1
-  },
-  semester: {
-    type: String,
-    trim: true
-  },
-  professorId: {
-    type: Schema.Types.ObjectId,
-    ref: 'User',
-    required: [true, 'Assigned professor is required']
-  },
-  materials: [materialSchema]
-}, {
-  timestamps: { createdAt: true, updatedAt: false }
-});
+courseSchema.set('toJSON', {
+  virtuals: true,
+  transform(doc, ret) { delete ret._id; delete ret.__v; return ret },
+})
 
-module.exports = mongoose.model('Course', courseSchema);
+export default mongoose.model('Course', courseSchema)

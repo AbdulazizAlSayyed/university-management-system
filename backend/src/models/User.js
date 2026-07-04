@@ -1,63 +1,48 @@
-const mongoose = require('mongoose');
-const { Schema } = mongoose;
+import mongoose from 'mongoose'
+import bcrypt from 'bcryptjs'
 
-const userSchema = new Schema({
-  firstName: {
-    type: String,
-    required: [true, 'First name is required'],
-    trim: true
-  },
-  lastName: {
-    type: String,
-    required: [true, 'Last name is required'],
-    trim: true
-  },
-  email: {
-    type: String,
-    required: [true, 'Email is required'],
-    unique: true,
-    trim: true,
-    lowercase: true
-  },
-  password: {
-    type: String,
-    required: [true, 'Password is required'],
-    select: false // Never return password by default in queries
-  },
-  role: {
-    type: String,
-    required: [true, 'Role is required'],
-    enum: ['admin', 'professor', 'student']
-  },
-  isActive: {
-    type: Boolean,
-    default: false // Admin must activate new accounts
-  },
-  // Student-only fields
-  gpa: {
-    type: Number,
-    min: 0,
-    max: 4
-  },
-  enrolledCourses: [{
-    type: Schema.Types.ObjectId,
-    ref: 'Course'
-  }],
-  // Professor-only field
-  assignedCourses: [{
-    type: Schema.Types.ObjectId,
-    ref: 'Course'
-  }]
-}, {
-  timestamps: { createdAt: true, updatedAt: false },
-  // Ensure virtual fields are included when converting documents to JSON or Objects
-  toJSON: { virtuals: true },
-  toObject: { virtuals: true }
-});
+const { Schema } = mongoose
 
-// Virtual field to combine names seamlessly if a query needs a full string fallback
-userSchema.virtual('name').get(function () {
-  return `${this.firstName} ${this.lastName}`;
-});
+const userSchema = new Schema(
+  {
+    firstName: { type: String, required: true, trim: true },
+    lastName: { type: String, required: true, trim: true },
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    password: { type: String, required: true, minlength: 6, select: false },
+    role: { type: String, enum: ['admin', 'professor', 'student'], default: 'student' },
+    status: { type: String, enum: ['active', 'pending', 'inactive'], default: 'active' },
+    username: { type: String, trim: true },
+    phone: { type: String, trim: true },
+    avatarColor: { type: String, default: 'bg-brand-600' },
+    // student fields
+    studentId: { type: String, trim: true },
+    program: { type: String, trim: true },
+    year: { type: Number },
+    // professor fields
+    department: { type: String, trim: true },
+    title: { type: String, trim: true },
+  },
+  { timestamps: true }
+)
 
-module.exports = mongoose.model('User', userSchema);
+userSchema.pre('save', async function (next) {
+  if (!this.isModified('password')) return next()
+  const salt = await bcrypt.genSalt(10)
+  this.password = await bcrypt.hash(this.password, salt)
+  next()
+})
+
+userSchema.methods.matchPassword = function (entered) {
+  return bcrypt.compare(entered, this.password)
+}
+
+userSchema.set('toJSON', {
+  virtuals: true,
+  transform(doc, ret) {
+    delete ret.password
+    delete ret.__v
+    return ret
+  },
+})
+
+export default mongoose.model('User', userSchema)

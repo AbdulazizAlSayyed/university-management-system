@@ -1,15 +1,14 @@
-import { useMemo } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import {
-  Users, GraduationCap, BookOpen, ClipboardList, UserCheck, ArrowRight, Plus, ScrollText,
-} from 'lucide-react'
-import { useData } from '../../context/DataContext'
-import { PageHeader, StatCard, Card, CardHeader, Button, Avatar, Badge, EmptyState } from '../../components/ui'
+import { Users, GraduationCap, BookOpen, ClipboardList, UserCheck, ArrowRight, Plus, ScrollText, AlertTriangle } from 'lucide-react'
+import * as adminApi from '../../api/admin'
+import { useToast } from '../../context/ToastContext'
+import { PageHeader, StatCard, Card, CardHeader, Button, Avatar, Badge, EmptyState, LoadingState } from '../../components/ui'
 import { fullName, timeAgo, classNames } from '../../utils/helpers'
 
-// Lightweight horizontal bar chart (no external chart lib)
 function BarChart({ data }) {
   const max = Math.max(...data.map((d) => d.capacity), 1)
+  if (data.length === 0) return <p className="px-5 py-8 text-center text-sm text-slate-400">No courses yet.</p>
   return (
     <div className="space-y-3 p-5">
       {data.map((d) => {
@@ -23,20 +22,15 @@ function BarChart({ data }) {
             </div>
             <div className="relative h-6 w-full overflow-hidden rounded-lg bg-slate-100">
               <div className="absolute inset-y-0 left-0 rounded-lg bg-brand-100" style={{ width: `${capPct}%` }} />
-              <div className="absolute inset-y-0 left-0 flex items-center rounded-lg bg-brand-600 transition-all" style={{ width: `${enrolledPct}%` }} />
+              <div className="absolute inset-y-0 left-0 rounded-lg bg-brand-600 transition-all" style={{ width: `${enrolledPct}%` }} />
             </div>
           </div>
         )
       })}
-      <div className="flex items-center gap-4 pt-1 text-xs text-slate-400">
-        <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-brand-600" /> Enrolled</span>
-        <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-brand-100" /> Capacity</span>
-      </div>
     </div>
   )
 }
 
-// Simple SVG donut for status breakdown
 function Donut({ segments }) {
   const total = segments.reduce((a, s) => a + s.value, 0) || 1
   const radius = 60
@@ -49,13 +43,8 @@ function Donut({ segments }) {
         {segments.map((s, i) => {
           const len = (s.value / total) * circumference
           const seg = (
-            <circle
-              key={i}
-              cx="80" cy="80" r={radius} fill="none"
-              stroke={s.color} strokeWidth="18"
-              strokeDasharray={`${len} ${circumference - len}`}
-              strokeDashoffset={-offset}
-            />
+            <circle key={i} cx="80" cy="80" r={radius} fill="none" stroke={s.color} strokeWidth="18"
+              strokeDasharray={`${len} ${circumference - len}`} strokeDashoffset={-offset} />
           )
           offset += len
           return seg
@@ -76,75 +65,80 @@ function Donut({ segments }) {
 }
 
 export default function AdminDashboard() {
-  const data = useData()
   const navigate = useNavigate()
-  const { users, courses, enrollments, auditLogs, setUserStatus } = data
+  const { toast } = useToast()
+  const [stats, setStats] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
-  const students = users.filter((u) => u.role === 'student')
-  const professors = users.filter((u) => u.role === 'professor')
-  const pending = users.filter((u) => u.status === 'pending')
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      setStats(await adminApi.getDashboardStats())
+    } catch (e) {
+      setError(adminApi.errMsg(e))
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
-  const enrollByCourse = useMemo(
-    () => courses.map((c) => ({
-      name: c.code,
-      students: enrollments.filter((e) => e.courseId === c.id).length,
-      capacity: c.capacity,
-    })),
-    [courses, enrollments]
+  useEffect(() => { load() }, [load])
+
+  const activate = async (id) => {
+    try {
+      await adminApi.setUserStatus(id, 'active')
+      toast('Account activated.', 'success')
+      load()
+    } catch (e) { toast(adminApi.errMsg(e), 'error') }
+  }
+
+  if (loading) return <LoadingState label="Loading dashboard..." />
+  if (error) return (
+    <Card><EmptyState icon={AlertTriangle} title="Could not load data" message={error} action={<Button onClick={load}>Retry</Button>} /></Card>
   )
 
-  const statusSegments = useMemo(() => {
-    const count = (s) => users.filter((u) => u.status === s).length
-    return [
-      { name: 'Active', value: count('active'), color: '#10b981' },
-      { name: 'Pending', value: count('pending'), color: '#f59e0b' },
-      { name: 'Inactive', value: count('inactive'), color: '#ef4444' },
-    ].filter((d) => d.value > 0)
-  }, [users])
+  const { counts, statusBreakdown, pending, enrollmentByCourse, recentActivity } = stats
+  const barData = enrollmentByCourse.map((c) => ({ name: c.code, students: c.students, capacity: c.capacity }))
+  const segments = [
+    { name: 'Active', value: statusBreakdown.active || 0, color: '#10b981' },
+    { name: 'Pending', value: statusBreakdown.pending || 0, color: '#f59e0b' },
+    { name: 'Inactive', value: statusBreakdown.inactive || 0, color: '#ef4444' },
+  ].filter((s) => s.value > 0)
 
   return (
     <div>
-      <PageHeader
-        title="Admin Dashboard"
-        subtitle="Overview of students, professors, courses, and enrollment."
-        icon={Users}
-        actions={
-          <>
-            <Button variant="secondary" icon={BookOpen} onClick={() => navigate('/admin/courses')}>Courses</Button>
-            <Button icon={Plus} onClick={() => navigate('/admin/users')}>Add user</Button>
-          </>
-        }
+      <PageHeader title="Admin Dashboard" subtitle="Live data from the database." icon={Users}
+        actions={<>
+          <Button variant="secondary" icon={BookOpen} onClick={() => navigate('/admin/courses')}>Courses</Button>
+          <Button icon={Plus} onClick={() => navigate('/admin/users')}>Add user</Button>
+        </>}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard icon={GraduationCap} label="Total Students" value={students.length} sub={`${students.filter((s) => s.status === 'active').length} active`} tone="brand" />
-        <StatCard icon={Users} label="Professors" value={professors.length} sub={`${professors.filter((s) => s.status === 'active').length} active`} tone="emerald" />
-        <StatCard icon={BookOpen} label="Courses" value={courses.length} sub={`${courses.reduce((a, c) => a + c.credits, 0)} total credits`} tone="violet" />
-        <StatCard icon={ClipboardList} label="Enrollments" value={enrollments.length} sub="This semester" tone="amber" />
+        <StatCard icon={GraduationCap} label="Total Students" value={counts.students} tone="brand" />
+        <StatCard icon={Users} label="Professors" value={counts.professors} tone="emerald" />
+        <StatCard icon={BookOpen} label="Courses" value={counts.courses} sub={`${counts.totalCredits} total credits`} tone="violet" />
+        <StatCard icon={ClipboardList} label="Enrollments" value={counts.enrollments} sub="This semester" tone="amber" />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader title="Enrollment by Course" subtitle="Students enrolled vs. capacity" icon={BookOpen} />
-          <BarChart data={enrollByCourse} />
+          <BarChart data={barData} />
         </Card>
-
         <Card>
           <CardHeader title="Accounts by Status" icon={UserCheck} />
-          <Donut segments={statusSegments} />
+          {segments.length ? <Donut segments={segments} /> : <EmptyState icon={UserCheck} title="No accounts" message="No user accounts yet." />}
         </Card>
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <Card>
-          <CardHeader
-            title="Pending Activations"
-            subtitle={`${pending.length} account${pending.length !== 1 ? 's' : ''} awaiting approval`}
-            icon={UserCheck}
-            action={<Button variant="ghost" size="sm" onClick={() => navigate('/admin/users')}>View all <ArrowRight size={14} /></Button>}
-          />
+          <CardHeader title="Pending Activations" subtitle={`${pending.length} awaiting approval`} icon={UserCheck}
+            action={<Button variant="ghost" size="sm" onClick={() => navigate('/admin/users')}>View all <ArrowRight size={14} /></Button>} />
           {pending.length === 0 ? (
-            <EmptyState icon={UserCheck} title="No pending accounts" message="All user accounts have been activated." />
+            <EmptyState icon={UserCheck} title="No pending accounts" message="All accounts are activated." />
           ) : (
             <ul className="divide-y divide-slate-100">
               {pending.map((u) => (
@@ -155,7 +149,7 @@ export default function AdminDashboard() {
                     <p className="truncate text-xs text-slate-400">{u.email}</p>
                   </div>
                   <Badge tone="brand">{u.role}</Badge>
-                  <Button size="sm" variant="success" icon={UserCheck} onClick={() => setUserStatus(u.id, 'active')}>Activate</Button>
+                  <Button size="sm" variant="success" icon={UserCheck} onClick={() => activate(u.id)}>Activate</Button>
                 </li>
               ))}
             </ul>
@@ -163,24 +157,24 @@ export default function AdminDashboard() {
         </Card>
 
         <Card>
-          <CardHeader title="Recent Activity" subtitle="Latest actions in the system" icon={ScrollText}
-            action={<Button variant="ghost" size="sm" onClick={() => navigate('/admin/audit')}>Audit log <ArrowRight size={14} /></Button>}
-          />
-          <ul className="divide-y divide-slate-100">
-            {auditLogs.slice(0, 6).map((a) => {
-              const actor = users.find((u) => u.id === a.actorId)
-              return (
+          <CardHeader title="Recent Activity" subtitle="Latest actions" icon={ScrollText}
+            action={<Button variant="ghost" size="sm" onClick={() => navigate('/admin/audit')}>Audit log <ArrowRight size={14} /></Button>} />
+          {recentActivity.length === 0 ? (
+            <EmptyState icon={ScrollText} title="No activity yet" message="Actions will show up here." />
+          ) : (
+            <ul className="divide-y divide-slate-100">
+              {recentActivity.map((a) => (
                 <li key={a.id} className="flex items-start gap-3 px-5 py-3.5">
                   <span className={classNames('mt-1.5 h-2 w-2 shrink-0 rounded-full', a.action === 'create' ? 'bg-emerald-500' : a.action === 'delete' ? 'bg-red-500' : 'bg-brand-500')} />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm text-slate-700">{a.detail}</p>
-                    <p className="mt-0.5 text-xs text-slate-400">{actor ? fullName(actor) : 'System'} · {timeAgo(a.timestamp)}</p>
+                    <p className="mt-0.5 text-xs text-slate-400">{a.actorId ? fullName(a.actorId) : 'System'} - {timeAgo(a.createdAt)}</p>
                   </div>
                   <Badge tone={a.action === 'create' ? 'emerald' : a.action === 'delete' ? 'red' : 'brand'}>{a.action}</Badge>
                 </li>
-              )
-            })}
-          </ul>
+              ))}
+            </ul>
+          )}
         </Card>
       </div>
     </div>

@@ -7,8 +7,9 @@ const attendanceRecordSchema = new Schema({
     ref: 'User',
     required: true
   },
-  present: {
-    type: Boolean,
+  status: {
+    type: String,
+    enum: ['present', 'absent'],
     required: true
   }
 }, { _id: false });
@@ -19,17 +20,14 @@ const attendanceSchema = new Schema({
     ref: 'Course',
     required: [true, 'Course is required']
   },
-  date: {
+  sessionDate: {
     type: Date,
     required: [true, 'Session date is required']
-  },
-  topic: {
-    type: String,
-    trim: true
   },
   records: [attendanceRecordSchema]
 });
 
-attendanceSchema.index({ courseId: 1, date: 1 }, { unique: true });
+// One attendance document per course per session
+attendanceSchema.index({ courseId: 1, sessionDate: 1 }, { unique: true });
 
 module.exports = mongoose.model('Attendance', attendanceSchema);

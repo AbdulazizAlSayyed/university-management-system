@@ -1,30 +1,45 @@
+import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   BookOpen, GraduationCap, ClipboardList, CalendarClock, ArrowRight, Clock,
   Megaphone, Bell, Compass,
 } from 'lucide-react'
+import { useData } from '../../context/DataContext'
 import { useAuth } from '../../context/AuthContext'
-import { studentApi } from '../../api'
-import { useFetch } from '../../hooks/useFetch'
-import { PageHeader, StatCard, Card, CardHeader, Button, Badge, EmptyState, LoadingState } from '../../components/ui'
+import { PageHeader, StatCard, Card, CardHeader, Button, Badge, EmptyState } from '../../components/ui'
 import CourseCard from '../../components/CourseCard'
-import { fullName, formatDate, timeAgo, daysUntil, classNames } from '../../utils/helpers'
+import { fullName, formatDate, timeAgo, daysUntil, calculateGPA, classNames } from '../../utils/helpers'
 
 export default function StudentDashboard() {
+  const { courses, users, enrollments, assignments, submissions, grades, exams, announcements, notifications } = useData()
   const { currentUser } = useAuth()
   const navigate = useNavigate()
-  const { data, loading } = useFetch(() => studentApi.getDashboard())
 
-  if (loading) return <LoadingState label="Loading dashboard…" />
+  const myEnrollments = enrollments.filter((e) => e.studentId === currentUser.id)
+  const myCourseIds = new Set(myEnrollments.map((e) => e.courseId))
+  const myCourses = courses.filter((c) => myCourseIds.has(c.id))
+  const courseById = useMemo(() => Object.fromEntries(courses.map((c) => [c.id, c])), [courses])
+  const userById = useMemo(() => Object.fromEntries(users.map((u) => [u.id, u])), [users])
 
-  const courseById = data?.courseById || {}
-  const userById = data?.userById || {}
-  const myCourses = data?.myCourses || []
-  const pendingAssignments = data?.pendingAssignments || []
-  const upcomingExams = data?.upcomingExams || []
-  const feed = data?.announcements || []
-  const myNotifs = data?.notifications || []
-  const gpa = data?.gpa || 0
+  const myGrades = grades.filter((g) => g.studentId === currentUser.id)
+  const { gpa } = calculateGPA(myGrades, courseById)
+
+  const mySubs = submissions.filter((s) => s.studentId === currentUser.id)
+  const submittedAsgIds = new Set(mySubs.map((s) => s.assignmentId))
+  const pendingAssignments = assignments
+    .filter((a) => myCourseIds.has(a.courseId) && !submittedAsgIds.has(a.id) && daysUntil(a.dueDate) >= 0)
+    .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
+
+  const upcomingExams = exams
+    .filter((x) => myCourseIds.has(x.courseId) && daysUntil(x.date) >= 0)
+    .sort((a, b) => new Date(a.date) - new Date(b.date))
+
+  const feed = announcements
+    .filter((a) => a.scope === 'system' || (a.scope === 'course' && myCourseIds.has(a.courseId)))
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, 4)
+
+  const myNotifs = notifications.filter((n) => n.userId === currentUser.id).slice(0, 4)
 
   return (
     <div>
@@ -43,6 +58,7 @@ export default function StudentDashboard() {
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
+        {/* Courses */}
         <div className="lg:col-span-2">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="font-bold text-slate-800">My Courses</h2>
@@ -64,44 +80,34 @@ export default function StudentDashboard() {
             </div>
           )}
 
+          {/* Deadlines */}
           <Card className="mt-6">
             <CardHeader title="Upcoming Deadlines" icon={Clock}
               action={<Button variant="ghost" size="sm" onClick={() => navigate('/student/assignments')}>All</Button>} />
-            {pendingAssignments.length === 0 && upcomingExams.length === 0 ? (
-              <EmptyState icon={Clock} title="You're all caught up" message="No pending assignments or exams right now." />
+            {pendingAssignments.length === 0 ? (
+              <EmptyState icon={Clock} title="You're all caught up" message="No pending assignments right now." />
             ) : (
               <ul className="divide-y divide-slate-100">
-                {[...pendingAssignments.map((a) => ({ ...a, _type: 'assignment', _date: a.dueDate })), ...upcomingExams.map((x) => ({ ...x, _type: 'exam', _date: x.date }))]
-                  .sort((a, b) => new Date(a._date) - new Date(b._date))
-                  .slice(0, 6)
-                  .map((item) => {
-                    const d = daysUntil(item._date)
-                    const isExam = item._type === 'exam'
-                    return (
-                      <li key={`${isExam ? 'exam' : 'asg'}-${item.id}`} className="flex items-center gap-3 px-5 py-3">
-                        <span className={classNames('grid h-9 w-9 shrink-0 place-items-center rounded-lg', isExam ? 'bg-violet-50 text-violet-600' : 'bg-brand-50 text-brand-600')}>
-                          {isExam ? <CalendarClock size={16} /> : <ClipboardList size={16} />}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold text-slate-700">{item.title}</p>
-                          <p className="truncate text-xs text-slate-400">
-                            {isExam
-                              ? `${courseById[item.courseId]?.code || ''} · ${item.startTime}–${item.endTime} · ${item.room}`
-                              : `${courseById[item.courseId]?.code} · Due ${formatDate(item.dueDate)}`}
-                          </p>
-                        </div>
-                        <Badge tone={d < 0 ? 'slate' : d <= 3 ? 'red' : d <= 7 ? 'amber' : 'slate'}>{d < 0 ? 'Overdue' : d === 0 ? 'Today' : `${d}d left`}</Badge>
-                        <Button size="sm" variant="soft" onClick={() => navigate(isExam ? '/student/exams' : '/student/assignments')}>
-                          {isExam ? 'View' : 'Submit'}
-                        </Button>
-                      </li>
-                    )
-                  })}
+                {pendingAssignments.slice(0, 5).map((a) => {
+                  const d = daysUntil(a.dueDate)
+                  return (
+                    <li key={a.id} className="flex items-center gap-3 px-5 py-3">
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-600"><ClipboardList size={16} /></span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-slate-700">{a.title}</p>
+                        <p className="truncate text-xs text-slate-400">{courseById[a.courseId]?.code} · Due {formatDate(a.dueDate)}</p>
+                      </div>
+                      <Badge tone={d <= 3 ? 'red' : d <= 7 ? 'amber' : 'slate'}>{d === 0 ? 'Today' : `${d}d left`}</Badge>
+                      <Button size="sm" variant="soft" onClick={() => navigate('/student/assignments')}>Submit</Button>
+                    </li>
+                  )
+                })}
               </ul>
             )}
           </Card>
         </div>
 
+        {/* Sidebar */}
         <div className="space-y-6">
           <Card>
             <CardHeader title="Announcements" icon={Megaphone} />

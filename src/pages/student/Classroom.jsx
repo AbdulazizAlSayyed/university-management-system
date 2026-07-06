@@ -1,17 +1,15 @@
-// Mahmoud (Team Lead) — Classroom: materials, announcements, assignments for one course
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import {
   ArrowLeft, FileText, Megaphone, ClipboardList, Download, Link as LinkIcon,
   Clock, Upload, CheckCircle2, Pin, Award,
 } from 'lucide-react'
+import { useData } from '../../context/DataContext'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
-import { studentApi, client } from '../../api'
-import { useFetch } from '../../hooks/useFetch'
 import {
-  Card, CardHeader, Button, Badge, StatusBadge, Tabs, Modal, FileDropzone,
-  EmptyState, LoadingState,
+  Card, CardHeader, Button, IconButton, Badge, StatusBadge, Tabs, Modal, FileDropzone,
+  EmptyState,
 } from '../../components/ui'
 import { fullName, formatDate, timeAgo, daysUntil, fileTypeMeta, classNames } from '../../utils/helpers'
 
@@ -19,62 +17,64 @@ export default function StudentClassroom() {
   const { courseId } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
+  const data = useData()
   const { currentUser } = useAuth()
   const { toast } = useToast()
-  const { data, loading, reload } = useFetch(() => studentApi.getClassroom(courseId))
+  const course = data.courses.find((c) => c.id === courseId)
+  const requestedTab = new URLSearchParams(location.search).get('tab')
+  const [tab, setTab] = useState(() => {
+    if (requestedTab && ['materials', 'announcements', 'assignments'].includes(requestedTab)) {
+      return requestedTab
+    }
+    return 'materials'
+  })
   const [submitFor, setSubmitFor] = useState(null)
   const [fileName, setFileName] = useState('')
 
-  const requestedTab = new URLSearchParams(location.search).get('tab')
-  const [tab, setTab] = useState(() => {
-    if (requestedTab && ['materials', 'announcements', 'assignments'].includes(requestedTab)) return requestedTab
-    return 'materials'
-  })
+  const isEnrolled = data.enrollments.some((e) => e.studentId === currentUser.id && e.courseId === courseId)
+  const professor = course ? data.users.find((u) => u.id === course.professorId) : null
+
+  const materials = data.materials.filter((m) => m.courseId === courseId)
+  const courseAnns = data.announcements.filter((a) => a.scope === 'course' && a.courseId === courseId)
+    .sort((a, b) => (b.pinned - a.pinned) || new Date(b.createdAt) - new Date(a.createdAt))
+  const courseAssignments = data.assignments.filter((a) => a.courseId === courseId)
+  const mySub = (aid) => data.submissions.find((s) => s.assignmentId === aid && s.studentId === currentUser.id)
 
   useEffect(() => {
     if (requestedTab && ['materials', 'announcements', 'assignments'].includes(requestedTab)) {
       setTab(requestedTab)
+    } else {
+      setTab('materials')
     }
   }, [requestedTab])
 
   const byWeek = useMemo(() => {
-    if (!data) return {}
     const g = {}
-    ;(data.materials || []).forEach((m) => { (g[m.week] = g[m.week] || []).push(m) })
+    materials.forEach((m) => { (g[m.week] = g[m.week] || []).push(m) })
     return g
-  }, [data])
+  }, [materials])
 
   const handleTabChange = (nextTab) => {
     setTab(nextTab)
     navigate({ pathname: `/student/courses/${courseId}`, search: `?tab=${nextTab}` }, { replace: true })
   }
 
-  if (loading) return <LoadingState label="Loading classroom…" />
-  if (!data) {
+  if (!course || !isEnrolled) {
     return <Card><EmptyState icon={FileText} title="Course unavailable" message="You are not enrolled in this course." action={<Button onClick={() => navigate('/student/courses')}>Back to my courses</Button>} /></Card>
   }
 
-  const { course, professor, materials, announcements: courseAnns, assignments: courseAssignments, submissions } = data
-
-  const mySub = (aid) => (submissions || []).find((s) => s.assignmentId === aid && s.studentId === currentUser.id)
-
-  const doSubmit = async () => {
+  const doSubmit = () => {
     if (!fileName) return toast('Attach a file to submit.', 'error')
-    try {
-      await studentApi.submitAssignment(submitFor.id, fileName)
-      toast('Assignment submitted!', 'success')
-      setSubmitFor(null)
-      setFileName('')
-      reload()
-    } catch { toast('Failed to submit.', 'error') }
+    data.submitAssignment(submitFor.id, currentUser.id, fileName)
+    toast('Assignment submitted!', 'success')
+    setSubmitFor(null)
+    setFileName('')
   }
 
-  const sortedAnns = (courseAnns || []).sort((a, b) => (b.pinned - a.pinned) || new Date(b.createdAt) - new Date(a.createdAt))
-
   const tabs = [
-    { value: 'materials', label: 'Materials', icon: FileText, count: (materials || []).length },
-    { value: 'announcements', label: 'Announcements', icon: Megaphone, count: sortedAnns.length },
-    { value: 'assignments', label: 'Assignments', icon: ClipboardList, count: (courseAssignments || []).length },
+    { value: 'materials', label: 'Materials', icon: FileText, count: materials.length },
+    { value: 'announcements', label: 'Announcements', icon: Megaphone, count: courseAnns.length },
+    { value: 'assignments', label: 'Assignments', icon: ClipboardList, count: courseAssignments.length },
   ]
 
   return (
@@ -84,17 +84,17 @@ export default function StudentClassroom() {
       </button>
 
       <Card className="mb-6 overflow-hidden">
-        <div className={classNames('h-2 w-full', course?.color || 'bg-brand-500')} />
+        <div className={classNames('h-2 w-full', course.color)} />
         <div className="p-6">
           <div className="flex items-center gap-2">
-            <Badge tone="brand">{course?.code}</Badge>
-            <span className="text-xs text-slate-400">{course?.credits} credits</span>
+            <Badge tone="brand">{course.code}</Badge>
+            <span className="text-xs text-slate-400">{course.credits} credits</span>
           </div>
-          <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-800">{course?.name}</h1>
+          <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-800">{course.name}</h1>
           <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500">
             <span className="inline-flex items-center gap-1.5"><Award size={14} /> {professor ? fullName(professor) : 'TBA'}</span>
-            <span className="inline-flex items-center gap-1.5"><Clock size={14} /> {course?.schedule}</span>
-            <span>{course?.room}</span>
+            <span className="inline-flex items-center gap-1.5"><Clock size={14} /> {course.schedule}</span>
+            <span>{course.room}</span>
           </p>
         </div>
       </Card>
@@ -102,8 +102,9 @@ export default function StudentClassroom() {
       <Tabs tabs={tabs} active={tab} onChange={handleTabChange} />
 
       <div className="mt-6">
+        {/* Materials */}
         {tab === 'materials' && (
-          !materials || materials.length === 0 ? (
+          materials.length === 0 ? (
             <Card><EmptyState icon={FileText} title="No materials yet" message="Your professor hasn't uploaded materials for this course." /></Card>
           ) : (
             <div className="space-y-5">
@@ -120,20 +121,7 @@ export default function StudentClassroom() {
                             <p className="truncate text-sm font-semibold text-slate-700">{m.title}</p>
                             <p className="truncate text-xs text-slate-400">{m.fileName || m.link} {m.size ? `· ${m.size}` : ''}</p>
                           </div>
-                          <Button size="sm" variant="soft" icon={m.type === 'link' ? LinkIcon : Download} onClick={async () => {
-                            if (m.type === 'link' && m.link) { window.open(m.link, '_blank'); return }
-                            try {
-                              const res = await client.get(`/student/materials/${m.id}/download`, { responseType: 'blob' });
-                              const url = window.URL.createObjectURL(new Blob([res.data]));
-                              const a = document.createElement('a');
-                              a.href = url;
-                              a.download = m.fileName || 'download';
-                              document.body.appendChild(a);
-                              a.click();
-                              a.remove();
-                              window.URL.revokeObjectURL(url);
-                            } catch { toast('Download failed. File may not exist on server.', 'error') }
-                          }}>
+                          <Button size="sm" variant="soft" icon={m.type === 'link' ? LinkIcon : Download} onClick={() => toast('Download started (demo).', 'info')}>
                             {m.type === 'link' ? 'Open' : 'Download'}
                           </Button>
                         </li>
@@ -146,12 +134,13 @@ export default function StudentClassroom() {
           )
         )}
 
+        {/* Announcements */}
         {tab === 'announcements' && (
-          sortedAnns.length === 0 ? (
+          courseAnns.length === 0 ? (
             <Card><EmptyState icon={Megaphone} title="No announcements" message="No course announcements yet." /></Card>
           ) : (
             <div className="space-y-4">
-              {sortedAnns.map((a) => (
+              {courseAnns.map((a) => (
                 <Card key={a.id} className="p-5">
                   <div className="flex items-center gap-2">
                     <h3 className="font-bold text-slate-800">{a.title}</h3>
@@ -165,8 +154,9 @@ export default function StudentClassroom() {
           )
         )}
 
+        {/* Assignments */}
         {tab === 'assignments' && (
-          !courseAssignments || courseAssignments.length === 0 ? (
+          courseAssignments.length === 0 ? (
             <Card><EmptyState icon={ClipboardList} title="No assignments" message="No assignments have been posted yet." /></Card>
           ) : (
             <div className="space-y-4">
@@ -188,7 +178,7 @@ export default function StudentClassroom() {
                         {sub?.status === 'graded' && (
                           <div className="mt-3 rounded-lg bg-emerald-50 p-3 text-sm">
                             <p className="font-semibold text-emerald-800">Score: {sub.score}/{a.maxScore}</p>
-                            {sub.feedback && <p className="mt-1 text-emerald-700">"{sub.feedback}"</p>}
+                            {sub.feedback && <p className="mt-1 text-emerald-700">“{sub.feedback}”</p>}
                           </div>
                         )}
                       </div>
@@ -212,6 +202,7 @@ export default function StudentClassroom() {
         )}
       </div>
 
+      {/* Submit modal */}
       <Modal
         open={!!submitFor}
         onClose={() => setSubmitFor(null)}

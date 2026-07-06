@@ -12,18 +12,23 @@ const enrollmentSchema = new Schema({
     ref: 'Course',
     required: [true, 'Course is required']
   },
-  enrolledAt: {
-    type: String,
+  enrollmentDate: {
+    type: Date,
     required: true,
-    default: () => new Date().toISOString().slice(0, 10)
+    default: Date.now
   },
   status: {
     type: String,
+    required: [true, 'Status is required'],
     enum: ['enrolled', 'dropped', 'completed'],
     default: 'enrolled'
+  },
+  finalGrade: {
+    type: String // e.g. "A", "B+", "92", "Pass" — set once graded
   }
 });
 
+// A student can only enroll in the same course once
 enrollmentSchema.index({ studentId: 1, courseId: 1 }, { unique: true });
 
 module.exports = mongoose.model('Enrollment', enrollmentSchema);

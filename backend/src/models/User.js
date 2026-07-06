@@ -12,56 +12,84 @@ const userSchema = new Schema({
     required: [true, 'Last name is required'],
     trim: true
   },
-  email: {
+
+  // The email the person submitted their request with (or the admin already knew).
+  // Used to send them their university credentials. Permanent contact address.
+  personalEmail: {
     type: String,
-    required: [true, 'Email is required'],
-    unique: true,
     trim: true,
     lowercase: true
   },
+
+  // The university login email. Empty until the admin provisions the account.
+  email: {
+    type: String,
+    trim: true,
+    lowercase: true,
+    unique: true,
+    sparse: true // allows many docs with no email yet, without unique-index collisions
+  },
+
+  // Not required at schema level: 'requested' accounts have no password yet.
   password: {
     type: String,
-    required: [true, 'Password is required'],
     select: false
   },
+
   role: {
     type: String,
     required: [true, 'Role is required'],
     enum: ['admin', 'professor', 'student']
   },
-  phone: {
-    type: String,
-    trim: true
-  },
+
+  // requested -> account exists only as a request, no credentials yet
+  // active    -> admin has created university email/password and emailed them
+  // inactive  -> admin has disabled a previously active account
   status: {
     type: String,
-    enum: ['active', 'inactive', 'pending'],
-    default: 'pending'
+    enum: ['requested', 'active', 'inactive'],
+    default: 'requested'
   },
-  // Student-only fields
-  studentId: { type: String, trim: true },
-  program: { type: String, trim: true },
-  year: { type: Number },
-  // Professor/Admin fields
-  department: { type: String, trim: true },
-  title: { type: String, trim: true },
-  // Display
-  avatarColor: { type: String, default: 'bg-brand-600' },
+
+  dateOfBirth: Date,
+
+  // Extra profile fields the admin panel collects
   username: { type: String, trim: true },
-  isActive: {
-    type: Boolean,
-    default: false
+  phone: { type: String, trim: true },
+  department: { type: String, trim: true, default: 'Computer Science' },
+  title: { type: String, trim: true },
+  studentId: { type: String, trim: true },
+  program: { type: String, trim: true, default: 'Computer Science' },
+  year: { type: Number },
+
+  // Student-only
+  gpa: {
+    type: Number,
+    min: 0,
+    max: 4
   },
   enrolledCourses: [{
     type: Schema.Types.ObjectId,
     ref: 'Course'
   }],
+
+  // Professor-only
   assignedCourses: [{
     type: Schema.Types.ObjectId,
     ref: 'Course'
-  }]
+  }],
+
+  // Forgot-password support
+  resetPasswordToken: {
+    type: String,
+    select: false
+  },
+  resetPasswordExpires: {
+    type: Date,
+    select: false
+  }
 }, {
-  timestamps: { createdAt: 'createdAt', updatedAt: false },
+  timestamps: { createdAt: true, updatedAt: false },
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
 });

@@ -1,9 +1,17 @@
-// Admin routes - mounted at /api/admin  (protected: verifyToken + authorize("admin"))
-// Users:        GET/POST/PUT/DELETE /users , PATCH /users/:id/status (activate/deactivate)
-// Courses:      GET/POST/PUT/DELETE /courses (create + assign professor + capacity)
-// Enrollment:   POST /enrollments , DELETE /enrollments (enroll / remove students)
-// Exams:        GET/POST/PUT/DELETE /exams
-// Calendar:     GET/POST/DELETE /calendar
-// Announcements:GET/POST/DELETE /announcements (system-wide)
-// Audit log:    GET /audit
-// Dashboard:    GET /dashboard/stats
+const express = require('express');
+const router = express.Router();
+const verifyToken = require('../../middleware/auth.middleware');
+const authorize = require('../../middleware/role.middleware');
+const { validate, adminCreateUserSchema } = require('../../middleware/validate.middleware');
+const controller = require('./admin.controller');
+
+// Every route here requires a valid token AND the admin role.
+router.use(verifyToken, authorize('admin'));
+
+router.get('/users', controller.listUsers);
+router.post('/users', validate(adminCreateUserSchema), controller.createUser);
+router.post('/users/:id/approve', controller.approveRequest);
+router.patch('/users/:id/status', controller.setUserStatus);
+router.delete('/users/:id', controller.deleteUser);
+
+module.exports = router;

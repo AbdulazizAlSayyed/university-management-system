@@ -16,19 +16,15 @@ const assignmentSchema = new Schema({
     type: String,
     trim: true
   },
-  dueDate: {
+  deadline: {
     type: Date,
-    required: [true, 'Due date is required']
+    required: [true, 'Deadline is required']
   },
-  maxScore: {
-    type: Number,
-    default: 100
-  },
-  attachment: {
+  attachedFileUrl: {
     type: String
   }
 }, {
-  timestamps: { createdAt: 'createdAt', updatedAt: false }
+  timestamps: { createdAt: true, updatedAt: false }
 });
 
 module.exports = mongoose.model('Assignment', assignmentSchema);

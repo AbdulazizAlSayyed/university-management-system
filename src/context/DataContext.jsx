@@ -1,39 +1,27 @@
-// Mahmoud (Team Lead) — Central state management. No mock data — every page fetches its own.
 import { createContext, useContext, useState, useCallback, useMemo } from 'react'
+import * as seed from '../data/mockData'
 import { uid, scoreToLetter, scoreToPoints } from '../utils/helpers'
-import { studentApi } from '../api'
 
 const DataContext = createContext(null)
 export const useData = () => useContext(DataContext)
 
-export function DataProvider({ children }) {
-  // Start with EMPTY arrays — no mock data, no fake content
-  const [users, setUsers] = useState([])
-  const [courses, setCourses] = useState([])
-  const [enrollments, setEnrollments] = useState([])
-  const [materials, setMaterials] = useState([])
-  const [assignments, setAssignments] = useState([])
-  const [submissions, setSubmissions] = useState([])
-  const [grades, setGrades] = useState([])
-  const [exams, setExams] = useState([])
-  const [announcements, setAnnouncements] = useState([])
-  const [attendance, setAttendance] = useState([])
-  const [notifications, setNotifications] = useState([])
-  const [calendarEvents, setCalendarEvents] = useState([])
-  const [auditLogs, setAuditLogs] = useState([])
+// deep clone helper so edits don't mutate the seed module
+const clone = (x) => JSON.parse(JSON.stringify(x))
 
-  // Direct setters for pages to update data after API calls
-  const setUsersData = useCallback((data) => setUsers(data), [])
-  const setCoursesData = useCallback((data) => setCourses(data), [])
-  const setEnrollmentsData = useCallback((data) => setEnrollments(data), [])
-  const setMaterialsData = useCallback((data) => setMaterials(data), [])
-  const setAssignmentsData = useCallback((data) => setAssignments(data), [])
-  const setSubmissionsData = useCallback((data) => setSubmissions(data), [])
-  const setGradesData = useCallback((data) => setGrades(data), [])
-  const setExamsData = useCallback((data) => setExams(data), [])
-  const setAnnouncementsData = useCallback((data) => setAnnouncements(data), [])
-  const setNotificationsData = useCallback((data) => setNotifications(data), [])
-  const setAttendanceData = useCallback((data) => setAttendance(data), [[]])
+export function DataProvider({ children }) {
+  const [users, setUsers] = useState(() => clone(seed.users))
+  const [courses, setCourses] = useState(() => clone(seed.courses))
+  const [enrollments, setEnrollments] = useState(() => clone(seed.enrollments))
+  const [materials, setMaterials] = useState(() => clone(seed.materials))
+  const [assignments, setAssignments] = useState(() => clone(seed.assignments))
+  const [submissions, setSubmissions] = useState(() => clone(seed.submissions))
+  const [grades, setGrades] = useState(() => clone(seed.grades))
+  const [exams, setExams] = useState(() => clone(seed.exams))
+  const [announcements, setAnnouncements] = useState(() => clone(seed.announcements))
+  const [attendance, setAttendance] = useState(() => clone(seed.attendance))
+  const [notifications, setNotifications] = useState(() => clone(seed.notifications))
+  const [calendarEvents, setCalendarEvents] = useState(() => clone(seed.calendarEvents))
+  const [auditLogs, setAuditLogs] = useState(() => clone(seed.auditLogs))
 
   const log = useCallback((actorId, action, entity, detail) => {
     setAuditLogs((prev) => [
@@ -44,7 +32,13 @@ export function DataProvider({ children }) {
 
   // ---------------- Users ----------------
   const addUser = useCallback((data, actorId = 'u-admin') => {
-    const user = { id: uid('u'), status: 'pending', avatarColor: 'bg-brand-600', createdAt: new Date().toISOString().slice(0, 10), ...data }
+    const user = {
+      id: uid('u'),
+      status: 'pending',
+      avatarColor: 'bg-brand-600',
+      createdAt: new Date().toISOString().slice(0, 10),
+      ...data,
+    }
     setUsers((prev) => [...prev, user])
     log(actorId, 'create', 'User', `Created ${data.role} account "${data.firstName} ${data.lastName}"`)
     return user
@@ -52,7 +46,8 @@ export function DataProvider({ children }) {
 
   const updateUser = useCallback((id, patch, actorId = 'u-admin') => {
     setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, ...patch } : u)))
-    log(actorId, 'update', 'User', `Updated account "${patch.firstName || ''} ${patch.lastName || ''}"`)
+    const label = `${patch.firstName || ''} ${patch.lastName || ''}`.trim() || 'a user'
+    log(actorId, 'update', 'User', `Updated account "${label}"`)
   }, [log])
 
   const setUserStatus = useCallback((id, status, actorId = 'u-admin') => {
@@ -70,7 +65,7 @@ export function DataProvider({ children }) {
 
   // ---------------- Courses ----------------
   const addCourse = useCallback((data, actorId = 'u-admin') => {
-    const course = { id: uid('c'), status: 'active', semester: 'Fall 2026', color: 'bg-brand-500', ...data }
+    const course = { id: uid('c'), status: 'active', semester: seed.CURRENT_SEMESTER, color: 'bg-brand-500', ...data }
     setCourses((prev) => [...prev, course])
     log(actorId, 'create', 'Course', `Created course ${data.code} — ${data.name}`)
     return course
@@ -89,24 +84,28 @@ export function DataProvider({ children }) {
   }, [log, courses])
 
   // ---------------- Enrollments ----------------
-  const enrollStudent = useCallback(async (studentId, courseId, actorId) => {
-    try {
-      const enrollment = await studentApi.enroll(courseId)
-      setEnrollments((prev) => [...prev, enrollment])
-      setGrades((prev) => [...prev, { id: uid('g'), studentId, courseId, letter: null, points: null, score: null, status: 'in-progress' }])
-      log(actorId || studentId, 'create', 'Enrollment', `Enrolled in course`)
-      return true
-    } catch { return false }
-  }, [log])
+  const enrollStudent = useCallback((studentId, courseId, actorId) => {
+    const exists = enrollments.some((e) => e.studentId === studentId && e.courseId === courseId)
+    if (exists) return false
+    setEnrollments((prev) => [
+      ...prev,
+      { id: uid('e'), studentId, courseId, enrolledAt: new Date().toISOString().slice(0, 10), status: 'enrolled' },
+    ])
+    // create an in-progress grade record
+    setGrades((prev) => [...prev, { id: uid('g'), studentId, courseId, letter: null, points: null, score: null, status: 'in-progress' }])
+    const c = courses.find((x) => x.id === courseId)
+    const s = users.find((x) => x.id === studentId)
+    log(actorId || studentId, 'create', 'Enrollment', `${s ? s.firstName + ' ' + s.lastName : studentId} enrolled in ${c ? c.code : courseId}`)
+    return true
+  }, [enrollments, courses, users, log])
 
-  const dropStudent = useCallback(async (studentId, courseId, actorId) => {
-    try {
-      await studentApi.drop(courseId)
-      setEnrollments((prev) => prev.filter((e) => !(e.studentId === studentId && e.courseId === courseId)))
-      setGrades((prev) => prev.filter((g) => !(g.studentId === studentId && g.courseId === courseId && g.status === 'in-progress')))
-      log(actorId || studentId, 'delete', 'Enrollment', `Dropped course`)
-    } catch {}
-  }, [log])
+  const dropStudent = useCallback((studentId, courseId, actorId) => {
+    setEnrollments((prev) => prev.filter((e) => !(e.studentId === studentId && e.courseId === courseId)))
+    setGrades((prev) => prev.filter((g) => !(g.studentId === studentId && g.courseId === courseId && g.status === 'in-progress')))
+    const c = courses.find((x) => x.id === courseId)
+    const s = users.find((x) => x.id === studentId)
+    log(actorId || studentId, 'delete', 'Enrollment', `${s ? s.firstName + ' ' + s.lastName : studentId} dropped ${c ? c.code : courseId}`)
+  }, [courses, users, log])
 
   // ---------------- Materials ----------------
   const addMaterial = useCallback((data, actorId) => {
@@ -141,24 +140,26 @@ export function DataProvider({ children }) {
   }, [log])
 
   // ---------------- Submissions ----------------
-  const submitAssignment = useCallback(async (assignmentId, studentId, fileName) => {
-    try {
-      await studentApi.submitAssignment(assignmentId, fileName)
-      setSubmissions((prev) => {
-        const existing = prev.find((s) => s.assignmentId === assignmentId && s.studentId === studentId)
-        if (existing) {
-          return prev.map((s) =>
-            s.id === existing.id ? { ...s, fileName, submittedAt: new Date().toISOString().slice(0, 10), status: 'submitted', score: null, feedback: null } : s
-          )
-        }
-        return [...prev, { id: uid('s'), assignmentId, studentId, submittedAt: new Date().toISOString().slice(0, 10), fileName, status: 'submitted', score: null, feedback: null }]
-      })
-      log(studentId, 'create', 'Submission', `Submitted assignment file "${fileName}"`)
-    } catch {}
+  const submitAssignment = useCallback((assignmentId, studentId, fileName) => {
+    setSubmissions((prev) => {
+      const existing = prev.find((s) => s.assignmentId === assignmentId && s.studentId === studentId)
+      if (existing) {
+        return prev.map((s) =>
+          s.id === existing.id ? { ...s, fileName, submittedAt: new Date().toISOString().slice(0, 10), status: 'submitted', score: null, feedback: null } : s
+        )
+      }
+      return [
+        ...prev,
+        { id: uid('s'), assignmentId, studentId, submittedAt: new Date().toISOString().slice(0, 10), fileName, status: 'submitted', score: null, feedback: null },
+      ]
+    })
+    log(studentId, 'create', 'Submission', `Submitted assignment file "${fileName}"`)
   }, [log])
 
   const gradeSubmission = useCallback((submissionId, score, feedback, actorId) => {
-    setSubmissions((prev) => prev.map((s) => (s.id === submissionId ? { ...s, score: Number(score), feedback, status: 'graded' } : s)))
+    setSubmissions((prev) =>
+      prev.map((s) => (s.id === submissionId ? { ...s, score: Number(score), feedback, status: 'graded' } : s))
+    )
     log(actorId, 'update', 'Grade', `Graded a submission (${score})`)
   }, [log])
 
@@ -168,7 +169,11 @@ export function DataProvider({ children }) {
     const points = scoreToPoints(Number(score))
     setGrades((prev) => {
       const existing = prev.find((g) => g.studentId === studentId && g.courseId === courseId)
-      if (existing) return prev.map((g) => (g.id === existing.id ? { ...g, score: Number(score), letter, points, status: 'final' } : g))
+      if (existing) {
+        return prev.map((g) =>
+          g.id === existing.id ? { ...g, score: Number(score), letter, points, status: 'final' } : g
+        )
+      }
       return [...prev, { id: uid('g'), studentId, courseId, score: Number(score), letter, points, status: 'final' }]
     })
     log(actorId, 'update', 'Grade', `Entered final grade ${letter} for a student`)
@@ -214,14 +219,12 @@ export function DataProvider({ children }) {
   }, [log])
 
   // ---------------- Notifications ----------------
-  const markNotificationRead = useCallback(async (id) => {
+  const markNotificationRead = useCallback((id) => {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
-    try { await studentApi.markNotificationRead(id) } catch {}
   }, [])
 
-  const markAllNotificationsRead = useCallback(async (userId) => {
+  const markAllNotificationsRead = useCallback((userId) => {
     setNotifications((prev) => prev.map((n) => (n.userId === userId ? { ...n, read: true } : n)))
-    try { await studentApi.markAllNotificationsRead() } catch {}
   }, [])
 
   // ---------------- Calendar ----------------
@@ -241,9 +244,6 @@ export function DataProvider({ children }) {
     () => ({
       users, courses, enrollments, materials, assignments, submissions, grades,
       exams, announcements, attendance, notifications, calendarEvents, auditLogs,
-      setUsersData, setCoursesData, setEnrollmentsData, setMaterialsData,
-      setAssignmentsData, setSubmissionsData, setGradesData, setExamsData,
-      setAnnouncementsData, setNotificationsData, setAttendanceData,
       addUser, updateUser, setUserStatus, deleteUser,
       addCourse, updateCourse, deleteCourse,
       enrollStudent, dropStudent,

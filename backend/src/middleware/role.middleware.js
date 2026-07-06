@@ -1,13 +1,12 @@
-const authorize = (...roles) => {
+// Restricts a route to specific roles. Must run after verifyToken,
+// since it relies on req.user being already set.
+function authorize(...allowedRoles) {
   return (req, res, next) => {
-    if (!req.user) {
-      return res.status(401).json({ message: 'Authentication required.' });
-    }
-    if (!roles.includes(req.user.role)) {
-      return res.status(403).json({ message: 'Forbidden. You do not have the required role.' });
+    if (!req.user || !allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({ message: 'You do not have permission to do this' });
     }
     next();
   };
-};
+}
 
-module.exports = { authorize };
+module.exports = authorize;

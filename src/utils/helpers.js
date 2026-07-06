@@ -1,3 +1,5 @@
+import { GRADE_SCALE } from '../data/mockData'
+
 // ----- Names & initials -----
 export const fullName = (u) => (u ? `${u.firstName} ${u.lastName}` : 'Unknown')
 
@@ -27,7 +29,7 @@ export const formatDateTime = (dateStr) => {
 export const timeAgo = (dateStr) => {
   if (!dateStr) return ''
   const d = new Date(dateStr)
-  const now = new Date()
+  const now = new Date('2026-10-06T12:00:00') // fixed "today" for the demo
   const diff = Math.round((now - d) / 1000)
   const abs = Math.abs(diff)
   const units = [
@@ -43,22 +45,9 @@ export const timeAgo = (dateStr) => {
 
 export const daysUntil = (dateStr) => {
   const d = new Date(dateStr)
-  const now = new Date()
+  const now = new Date('2026-10-06T00:00:00')
   return Math.ceil((d - now) / 86400000)
 }
-
-const GRADE_SCALE = [
-  { letter: 'A', min: 93, points: 4.0 },
-  { letter: 'A-', min: 90, points: 3.7 },
-  { letter: 'B+', min: 87, points: 3.3 },
-  { letter: 'B', min: 83, points: 3.0 },
-  { letter: 'B-', min: 80, points: 2.7 },
-  { letter: 'C+', min: 77, points: 2.3 },
-  { letter: 'C', min: 73, points: 2.0 },
-  { letter: 'C-', min: 70, points: 1.7 },
-  { letter: 'D', min: 60, points: 1.0 },
-  { letter: 'F', min: 0, points: 0.0 },
-]
 
 // ----- Grades / GPA -----
 export const scoreToLetter = (score) => {

@@ -1,54 +1,41 @@
-// Mahmoud (Team Lead) — Assignments: all assignments across courses with submit
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo } from 'react'
 import { ClipboardList, Clock, Upload, CheckCircle2 } from 'lucide-react'
+import { useData } from '../../context/DataContext'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
-import { studentApi } from '../../api'
-import { useFetch } from '../../hooks/useFetch'
 import {
-  PageHeader, Card, Button, Badge, StatusBadge, Tabs, Modal, FileDropzone, EmptyState, LoadingState,
+  PageHeader, Card, Button, Badge, StatusBadge, Tabs, Modal, FileDropzone, EmptyState,
 } from '../../components/ui'
 import { formatDate, daysUntil } from '../../utils/helpers'
 
 export default function StudentAssignments() {
+  const { courses, enrollments, assignments, submissions, submitAssignment } = useData()
   const { currentUser } = useAuth()
   const { toast } = useToast()
-  const { data, loading, reload } = useFetch(() => studentApi.getAssignments())
   const [tab, setTab] = useState('todo')
   const [submitFor, setSubmitFor] = useState(null)
   const [fileName, setFileName] = useState('')
 
-  const courseById = useMemo(() => {
-    if (!data) return {}
-    return Object.fromEntries((data.courses || []).map((c) => [c.id, c]))
-  }, [data])
+  const myCourseIds = new Set(enrollments.filter((e) => e.studentId === currentUser.id).map((e) => e.courseId))
+  const courseById = useMemo(() => Object.fromEntries(courses.map((c) => [c.id, c])), [courses])
+  const mySub = (aid) => submissions.find((s) => s.assignmentId === aid && s.studentId === currentUser.id)
 
-  const mySub = useCallback((aid) => {
-    if (!data) return null
-    return (data.submissions || []).find((s) => s.assignmentId === aid && s.studentId === currentUser.id)
-  }, [data, currentUser.id])
+  const mine = assignments
+    .filter((a) => myCourseIds.has(a.courseId))
+    .map((a) => ({ ...a, sub: mySub(a.id) }))
+    .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
 
-  const mine = useMemo(() => {
-    if (!data) return []
-    return (data.assignments || [])
-      .map((a) => ({ ...a, sub: mySub(a.id) }))
-      .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
-  }, [data, mySub])
-
-  const todo = useMemo(() => mine.filter((a) => !a.sub && daysUntil(a.dueDate) >= 0), [mine])
-  const submitted = useMemo(() => mine.filter((a) => a.sub && a.sub.status === 'submitted'), [mine])
-  const graded = useMemo(() => mine.filter((a) => a.sub && a.sub.status === 'graded'), [mine])
+  const todo = mine.filter((a) => !a.sub && daysUntil(a.dueDate) >= 0)
+  const submitted = mine.filter((a) => a.sub && a.sub.status === 'submitted')
+  const graded = mine.filter((a) => a.sub && a.sub.status === 'graded')
   const list = tab === 'todo' ? todo : tab === 'submitted' ? submitted : tab === 'graded' ? graded : mine
 
-  const doSubmit = async () => {
+  const doSubmit = () => {
     if (!fileName) return toast('Attach a file to submit.', 'error')
-    try {
-      await studentApi.submitAssignment(submitFor.id, fileName)
-      toast('Assignment submitted!', 'success')
-      setSubmitFor(null)
-      setFileName('')
-      reload()
-    } catch { toast('Failed to submit.', 'error') }
+    submitAssignment(submitFor.id, currentUser.id, fileName)
+    toast('Assignment submitted!', 'success')
+    setSubmitFor(null)
+    setFileName('')
   }
 
   const tabs = [
@@ -57,8 +44,6 @@ export default function StudentAssignments() {
     { value: 'graded', label: 'Graded', icon: CheckCircle2, count: graded.length },
     { value: 'all', label: 'All', icon: ClipboardList, count: mine.length },
   ]
-
-  if (loading) return <LoadingState label="Loading assignments…" />
 
   return (
     <div>
@@ -89,7 +74,7 @@ export default function StudentAssignments() {
                     {a.sub?.status === 'graded' && (
                       <div className="mt-3 rounded-lg bg-emerald-50 p-3 text-sm">
                         <p className="font-semibold text-emerald-800">Score: {a.sub.score}/{a.maxScore}</p>
-                        {a.sub.feedback && <p className="mt-1 text-emerald-700">"{a.sub.feedback}"</p>}
+                        {a.sub.feedback && <p className="mt-1 text-emerald-700">“{a.sub.feedback}”</p>}
                       </div>
                     )}
                   </div>

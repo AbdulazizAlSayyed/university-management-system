@@ -1,13 +1,11 @@
-// Mahmoud (Team Lead) — Notifications: fetch + mark-read via API
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Bell, CheckCheck, GraduationCap, ClipboardList, FileText, Megaphone, Info,
 } from 'lucide-react'
+import { useData } from '../../context/DataContext'
 import { useAuth } from '../../context/AuthContext'
-import { studentApi } from '../../api'
-import { useFetch } from '../../hooks/useFetch'
-import { PageHeader, Card, Button, Tabs, EmptyState, LoadingState } from '../../components/ui'
+import { PageHeader, Card, Button, Tabs, EmptyState } from '../../components/ui'
 import { timeAgo, classNames } from '../../utils/helpers'
 
 const TYPE_ICON = {
@@ -28,28 +26,20 @@ const TYPE_TONE = {
 }
 
 export default function StudentNotifications() {
+  const { notifications, markNotificationRead, markAllNotificationsRead } = useData()
   const { currentUser } = useAuth()
   const navigate = useNavigate()
-  const { data, loading, reload } = useFetch(() => studentApi.getNotifications())
   const [tab, setTab] = useState('all')
 
-  const mine = useMemo(() => {
-    return (data || [])
-      .filter((n) => n.userId === currentUser.id)
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-  }, [data, currentUser.id])
-
-  const unread = useMemo(() => mine.filter((n) => !n.read), [mine])
+  const mine = notifications
+    .filter((n) => n.userId === currentUser.id)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+  const unread = mine.filter((n) => !n.read)
   const list = tab === 'unread' ? unread : mine
 
-  const open = async (n) => {
-    try { await studentApi.markNotificationRead(n.id) } catch {}
+  const open = (n) => {
+    markNotificationRead(n.id)
     if (n.link) navigate(n.link)
-    else reload()
-  }
-
-  const markAll = async () => {
-    try { await studentApi.markAllNotificationsRead(); reload() } catch {}
   }
 
   const tabs = [
@@ -57,15 +47,13 @@ export default function StudentNotifications() {
     { value: 'unread', label: 'Unread', icon: CheckCheck, count: unread.length },
   ]
 
-  if (loading) return <LoadingState label="Loading notifications…" />
-
   return (
     <div>
       <PageHeader
         title="Notifications"
         subtitle="Alerts for grades, assignments, materials, and announcements."
         icon={Bell}
-        actions={unread.length > 0 && <Button variant="secondary" icon={CheckCheck} onClick={markAll}>Mark all read</Button>}
+        actions={unread.length > 0 && <Button variant="secondary" icon={CheckCheck} onClick={() => markAllNotificationsRead(currentUser.id)}>Mark all read</Button>}
       />
 
       <Tabs tabs={tabs} active={tab} onChange={setTab} />

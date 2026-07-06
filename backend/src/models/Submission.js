@@ -12,28 +12,24 @@ const submissionSchema = new Schema({
     ref: 'User',
     required: [true, 'Student is required']
   },
-  fileName: {
+  fileUrl: {
     type: String,
-    required: [true, 'File name is required']
+    required: [true, 'Submission file is required']
   },
   submittedAt: {
-    type: String,
+    type: Date,
     required: true,
-    default: () => new Date().toISOString().slice(0, 10)
+    default: Date.now
   },
-  score: {
-    type: Number
+  grade: {
+    type: String // set once graded by professor
   },
   feedback: {
     type: String
-  },
-  status: {
-    type: String,
-    enum: ['submitted', 'graded', 'missing'],
-    default: 'submitted'
   }
 });
 
+// A student can only submit once per assignment
 submissionSchema.index({ assignmentId: 1, studentId: 1 }, { unique: true });
 
 module.exports = mongoose.model('Submission', submissionSchema);

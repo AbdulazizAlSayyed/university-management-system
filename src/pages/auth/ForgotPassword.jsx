@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import axios from 'axios'
 import { GraduationCap, Mail, ArrowLeft, CheckCircle2 } from 'lucide-react'
 import { Button, FormField, Input } from '../../components/ui'
 
@@ -7,15 +8,21 @@ export default function ForgotPassword() {
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
-  const onSubmit = (e) => {
+  const onSubmit = async (e) => {
     e.preventDefault()
     if (!email) return
+    setError('')
     setLoading(true)
-    setTimeout(() => {
-      setLoading(false)
+    try {
+      await axios.post('http://localhost:5000/api/auth/forgot-password', { email })
       setSent(true)
-    }, 700)
+    } catch (err) {
+      setError(err.response?.data?.message || 'Something went wrong. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -49,6 +56,11 @@ export default function ForgotPassword() {
               <p className="mt-1 text-sm text-slate-500">
                 Enter the email linked to your account and we'll send you a reset link.
               </p>
+              {error && (
+                <div className="mt-4 bg-red-50 border border-red-200 text-red-600 p-3 rounded-lg text-sm text-center font-medium">
+                  {error}
+                </div>
+              )}
               <form onSubmit={onSubmit} className="mt-6 space-y-4">
                 <FormField label="Email address">
                   <div className="relative">

@@ -1,24 +1,18 @@
-// Mahmoud (Team Lead) — Exam timetable: fetches exams from API
 import { useMemo } from 'react'
 import { CalendarClock, MapPin, Clock, CalendarDays } from 'lucide-react'
-import { studentApi } from '../../api'
-import { useFetch } from '../../hooks/useFetch'
-import { PageHeader, Card, CardHeader, Badge, EmptyState, LoadingState } from '../../components/ui'
+import { useData } from '../../context/DataContext'
+import { useAuth } from '../../context/AuthContext'
+import { PageHeader, Card, CardHeader, Badge, EmptyState } from '../../components/ui'
 import { formatDate, daysUntil, classNames } from '../../utils/helpers'
 
 export default function StudentExams() {
-  const { data, loading } = useFetch(() => studentApi.getExams())
+  const { courses, enrollments, exams } = useData()
+  const { currentUser } = useAuth()
 
-  const courseById = useMemo(() => {
-    if (!data) return {}
-    return Object.fromEntries((data.courses || []).map((c) => [c.id, c]))
-  }, [data])
+  const courseById = useMemo(() => Object.fromEntries(courses.map((c) => [c.id, c])), [courses])
+  const myCourseIds = new Set(enrollments.filter((e) => e.studentId === currentUser.id).map((e) => e.courseId))
 
-  const myExams = useMemo(() => {
-    if (!data) return []
-    return (data.exams || []).sort((a, b) => new Date(a.date) - new Date(b.date))
-  }, [data])
-
+  const myExams = exams.filter((x) => myCourseIds.has(x.courseId)).sort((a, b) => new Date(a.date) - new Date(b.date))
   const upcoming = myExams.filter((x) => daysUntil(x.date) >= 0)
   const past = myExams.filter((x) => daysUntil(x.date) < 0)
 
@@ -52,8 +46,6 @@ export default function StudentExams() {
       </li>
     )
   }
-
-  if (loading) return <LoadingState label="Loading exam schedule…" />
 
   return (
     <div>

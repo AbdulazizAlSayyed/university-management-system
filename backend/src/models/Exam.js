@@ -7,31 +7,21 @@ const examSchema = new Schema({
     ref: 'Course',
     required: [true, 'Course is required']
   },
-  title: {
-    type: String,
-    required: [true, 'Title is required'],
-    trim: true
-  },
-  date: {
+  examDate: {
     type: Date,
     required: [true, 'Exam date is required']
   },
-  startTime: {
+  time: {
     type: String,
-    required: [true, 'Start time is required']
-  },
-  endTime: {
-    type: String,
-    required: [true, 'End time is required']
+    required: [true, 'Time is required']
   },
   room: {
     type: String,
     required: [true, 'Room is required']
   },
-  type: {
-    type: String,
-    enum: ['Midterm', 'Final', 'Quiz'],
-    default: 'Midterm'
+  createdByAdminId: {
+    type: Schema.Types.ObjectId,
+    ref: 'User'
   }
 });
 

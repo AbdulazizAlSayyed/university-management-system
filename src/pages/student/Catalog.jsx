@@ -1,48 +1,61 @@
-import { useState, useMemo } from 'react'
+// Mahmoud (Team Lead) — Catalog: fetches courses + enrollments from API, enroll/drop via API
+import { useState, useMemo, useCallback } from 'react'
 import { Compass, Check, Plus, Minus, Search } from 'lucide-react'
-import { useData } from '../../context/DataContext'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
-import { PageHeader, Card, Button, Badge, SearchInput, Select, EmptyState } from '../../components/ui'
+import { studentApi } from '../../api'
+import { useFetch } from '../../hooks/useFetch'
+import { PageHeader, Card, Button, Badge, SearchInput, Select, EmptyState, LoadingState } from '../../components/ui'
 import CourseCard from '../../components/CourseCard'
 import { fullName } from '../../utils/helpers'
 
 export default function StudentCatalog() {
-  const { courses, users, enrollments, enrollStudent, dropStudent } = useData()
   const { currentUser } = useAuth()
   const { toast } = useToast()
   const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState('all') // all | enrolled | available
+  const [filter, setFilter] = useState('all')
+  const { data, loading, reload } = useFetch(() => studentApi.getCatalog())
 
-  const userById = useMemo(() => Object.fromEntries(users.map((u) => [u.id, u])), [users])
-  const myCourseIds = useMemo(
-    () => new Set(enrollments.filter((e) => e.studentId === currentUser.id).map((e) => e.courseId)),
-    [enrollments, currentUser.id]
-  )
-  const countFor = (cid) => enrollments.filter((e) => e.courseId === cid).length
+  const userById = useMemo(() => {
+    if (!data) return {}
+    return Object.fromEntries(data.users.map((u) => [u.id, u]))
+  }, [data])
 
-  const list = courses.filter((c) => {
-    if (c.status !== 'active') return false
-    const enrolled = myCourseIds.has(c.id)
-    if (filter === 'enrolled' && !enrolled) return false
-    if (filter === 'available' && enrolled) return false
-    if (search) {
-      const q = search.toLowerCase()
-      return c.code.toLowerCase().includes(q) || c.name.toLowerCase().includes(q)
-    }
-    return true
-  })
+  const myCourseIds = useMemo(() => {
+    if (!data) return new Set()
+    return new Set(data.enrollments.filter((e) => e.studentId === currentUser.id).map((e) => e.courseId))
+  }, [data, currentUser.id])
 
-  const toggle = (c) => {
+  const countFor = useCallback((cid) => {
+    if (!data) return 0
+    return data.enrollments.filter((e) => e.courseId === cid).length
+  }, [data])
+
+  const list = useMemo(() => {
+    if (!data) return []
+    return data.courses.filter((c) => {
+      if (c.status !== 'active') return false
+      const enrolled = myCourseIds.has(c.id)
+      if (filter === 'enrolled' && !enrolled) return false
+      if (filter === 'available' && enrolled) return false
+      if (search) {
+        const q = search.toLowerCase()
+        return c.code.toLowerCase().includes(q) || c.name.toLowerCase().includes(q)
+      }
+      return true
+    })
+  }, [data, myCourseIds, filter, search])
+
+  const toggle = async (c) => {
     if (myCourseIds.has(c.id)) {
-      dropStudent(currentUser.id, c.id)
-      toast(`Dropped ${c.code}.`, 'info')
+      try { await studentApi.drop(c.id); toast(`Dropped ${c.code}.`, 'info'); reload() } catch { toast('Failed to drop.', 'error') }
     } else {
       if (countFor(c.id) >= c.capacity) return toast(`${c.code} is full.`, 'error')
-      enrollStudent(currentUser.id, c.id)
-      toast(`Enrolled in ${c.code}!`, 'success')
+      try { await studentApi.enroll(c.id); toast(`Enrolled in ${c.code}!`, 'success'); reload() } catch { toast('Failed to enroll.', 'error') }
     }
   }
+
+  if (loading) return <LoadingState label="Loading catalog…" />
 
   return (
     <div>

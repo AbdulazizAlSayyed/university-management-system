@@ -34,7 +34,7 @@ const signupSchema = z.object({
 });
 
 const loginSchema = z.object({
-  email: z.string().email({ message: "Invalid email format" }),
+  email: z.string().min(1, { message: "Email or username is required" }),
   password: z.string().min(1, { message: "Password is required" })
 });
 

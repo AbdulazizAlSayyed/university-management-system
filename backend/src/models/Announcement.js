@@ -2,43 +2,36 @@ const mongoose = require('mongoose');
 const { Schema } = mongoose;
 
 const announcementSchema = new Schema({
+  scope: {
+    type: String,
+    enum: ['system', 'course'],
+    required: [true, 'Scope is required']
+  },
   courseId: {
     type: Schema.Types.ObjectId,
-    ref: 'Course' // omitted = system-wide announcement
+    ref: 'Course'
   },
-  postedByAdminId: {
+  authorId: {
     type: Schema.Types.ObjectId,
-    ref: 'User' // set for system-wide announcements
-  },
-  postedByProfessorId: {
-    type: Schema.Types.ObjectId,
-    ref: 'User' // set for course-specific announcements
+    ref: 'User',
+    required: [true, 'Author is required']
   },
   title: {
     type: String,
     required: [true, 'Title is required'],
     trim: true
   },
-  message: {
+  body: {
     type: String,
-    required: [true, 'Message is required'],
+    required: [true, 'Body is required'],
     trim: true
+  },
+  pinned: {
+    type: Boolean,
+    default: false
   }
 }, {
-  timestamps: { createdAt: true, updatedAt: false }
-});
-
-// Enforce "exactly one poster type" at the application layer,
-// since Mongoose validators run per-field, not cross-field, by default.
-announcementSchema.pre('validate', function (next) {
-  const hasAdmin = !!this.postedByAdminId;
-  const hasProfessor = !!this.postedByProfessorId;
-
-  if (hasAdmin === hasProfessor) {
-    // both set, or neither set — invalid either way
-    return next(new Error('Announcement must be posted by exactly one of: admin or professor'));
-  }
-  next();
+  timestamps: { createdAt: 'createdAt', updatedAt: false }
 });
 
 module.exports = mongoose.model('Announcement', announcementSchema);

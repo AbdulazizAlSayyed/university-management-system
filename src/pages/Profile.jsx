@@ -1,7 +1,9 @@
+// Mahmoud (Team Lead) — My Profile: profile update via API, password change handled by teammate
 import { useState } from 'react'
 import { UserCog, Mail, Phone, Shield, Lock, Save, IdCard, Building2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
+import { authApi } from '../api'
 import { PageHeader, Card, CardHeader, Avatar, Button, FormField, Input } from '../components/ui'
 import { ROLE_LABEL } from '../components/layout/navConfig'
 import { fullName } from '../utils/helpers'
@@ -15,16 +17,22 @@ export default function Profile() {
     email: currentUser.email,
     phone: currentUser.phone || '',
   })
+  const [saving, setSaving] = useState(false)
   const [pw, setPw] = useState({ current: '', next: '', confirm: '' })
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
 
-  const saveProfile = (e) => {
+  const saveProfile = async (e) => {
     e.preventDefault()
-    updateProfile(form)
-    toast('Profile updated successfully.', 'success')
+    setSaving(true)
+    try {
+      const result = await authApi.updateProfile(form)
+      updateProfile(result.user)
+      toast('Profile updated successfully.', 'success')
+    } catch { toast('Failed to update profile.', 'error') } finally { setSaving(false) }
   }
 
+  // TODO: teammate will connect this to the backend
   const savePassword = (e) => {
     e.preventDefault()
     if (!pw.current || !pw.next) return toast('Fill in all password fields.', 'error')
@@ -41,7 +49,6 @@ export default function Profile() {
       <PageHeader title="My Profile" subtitle="Manage your personal information and password." icon={UserCog} />
 
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Summary card */}
         <Card className="p-6 lg:col-span-1">
           <div className="flex flex-col items-center text-center">
             <Avatar user={currentUser} size="lg" />
@@ -80,7 +87,6 @@ export default function Profile() {
           </dl>
         </Card>
 
-        {/* Edit forms */}
         <div className="space-y-6 lg:col-span-2">
           <Card>
             <CardHeader title="Personal Information" icon={UserCog} />
@@ -92,7 +98,7 @@ export default function Profile() {
               <FormField label="Email"><Input type="email" value={form.email} onChange={set('email')} /></FormField>
               <FormField label="Phone"><Input value={form.phone} onChange={set('phone')} placeholder="+1 (555) 000-0000" /></FormField>
               <div className="flex justify-end">
-                <Button type="submit" icon={Save}>Save changes</Button>
+                <Button type="submit" icon={Save} disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</Button>
               </div>
             </form>
           </Card>

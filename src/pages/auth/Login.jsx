@@ -5,9 +5,14 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
-import { DEMO_CREDENTIALS } from '../../data/mockData'
 import { Button, FormField, Input } from '../../components/ui'
 import { classNames } from '../../utils/helpers'
+
+const DEMO_CREDENTIALS = [
+  { role: 'admin', username: 'admin', email: 'admin@university.edu', password: 'Admin@123', label: 'Administrator' },
+  { role: 'professor', username: 'j.smith', email: 'professor@university.edu', password: 'Prof@123', label: 'Professor' },
+  { role: 'student', username: 's.jane', email: 'student@university.edu', password: 'Student@123', label: 'Student' },
+]
 
 const ROLE_STYLES = {
   admin: 'border-brand-200 bg-brand-50 text-brand-700',
@@ -172,14 +177,6 @@ export default function Login() {
               {!loading && <ArrowRight size={18} />}
             </Button>
           </form>
-
-          {/* 💡 Navigation footer to redirect users to signup */}
-          <p className="mt-5 text-center text-sm text-slate-600">
-            Don't have an account?{' '}
-            <Link to="/signup" className="font-semibold text-brand-600 hover:text-brand-700 transition-colors">
-              Create an account
-            </Link>
-          </p>
 
           {/* Demo accounts */}
           <div className="mt-8">

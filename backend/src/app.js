@@ -14,6 +14,9 @@ app.use(cors());
 app.use(express.json());
 app.use(morgan('dev'));
 
+// Serve uploaded files
+app.use('/uploads', express.static('uploads'));
+
 // Routes
 const routes = require('./routes');
 app.use('/api', routes);

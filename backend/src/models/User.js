@@ -22,40 +22,50 @@ const userSchema = new Schema({
   password: {
     type: String,
     required: [true, 'Password is required'],
-    select: false // Never return password by default in queries
+    select: false
   },
   role: {
     type: String,
     required: [true, 'Role is required'],
     enum: ['admin', 'professor', 'student']
   },
-  isActive: {
-    type: Boolean,
-    default: false // Admin must activate new accounts
+  phone: {
+    type: String,
+    trim: true
+  },
+  status: {
+    type: String,
+    enum: ['active', 'inactive', 'pending'],
+    default: 'pending'
   },
   // Student-only fields
-  gpa: {
-    type: Number,
-    min: 0,
-    max: 4
+  studentId: { type: String, trim: true },
+  program: { type: String, trim: true },
+  year: { type: Number },
+  // Professor/Admin fields
+  department: { type: String, trim: true },
+  title: { type: String, trim: true },
+  // Display
+  avatarColor: { type: String, default: 'bg-brand-600' },
+  username: { type: String, trim: true },
+  isActive: {
+    type: Boolean,
+    default: false
   },
   enrolledCourses: [{
     type: Schema.Types.ObjectId,
     ref: 'Course'
   }],
-  // Professor-only field
   assignedCourses: [{
     type: Schema.Types.ObjectId,
     ref: 'Course'
   }]
 }, {
-  timestamps: { createdAt: true, updatedAt: false },
-  // Ensure virtual fields are included when converting documents to JSON or Objects
+  timestamps: { createdAt: 'createdAt', updatedAt: false },
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
 });
 
-// Virtual field to combine names seamlessly if a query needs a full string fallback
 userSchema.virtual('name').get(function () {
   return `${this.firstName} ${this.lastName}`;
 });

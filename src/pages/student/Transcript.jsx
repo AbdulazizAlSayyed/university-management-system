@@ -1,21 +1,31 @@
+// Mahmoud (Team Lead) — Transcript: official academic record from API
 import { useMemo } from 'react'
 import { FileText, Download, GraduationCap } from 'lucide-react'
-import { useData } from '../../context/DataContext'
 import { useAuth } from '../../context/AuthContext'
-import { PageHeader, Card, Button } from '../../components/ui'
+import { studentApi } from '../../api'
+import { useFetch } from '../../hooks/useFetch'
+import { PageHeader, Card, Button, LoadingState } from '../../components/ui'
 import { fullName, calculateGPA, gradeColor, classNames } from '../../utils/helpers'
 
 export default function StudentTranscript() {
-  const { courses, users, enrollments, grades } = useData()
   const { currentUser } = useAuth()
+  const { data, loading } = useFetch(() => studentApi.getTranscript())
 
-  const courseById = useMemo(() => Object.fromEntries(courses.map((c) => [c.id, c])), [courses])
-  const userById = useMemo(() => Object.fromEntries(users.map((u) => [u.id, u])), [users])
-  const myCourseIds = new Set(enrollments.filter((e) => e.studentId === currentUser.id).map((e) => e.courseId))
-  const myGrades = grades.filter((g) => g.studentId === currentUser.id)
+  const courseById = useMemo(() => {
+    if (!data) return {}
+    return Object.fromEntries((data.courses || []).map((c) => [c.id, c]))
+  }, [data])
+
+  const userById = useMemo(() => {
+    if (!data) return {}
+    return Object.fromEntries((data.users || []).map((u) => [u.id, u]))
+  }, [data])
+
+  const myGrades = data?.grades || []
   const { gpa, credits } = calculateGPA(myGrades, courseById)
 
-  // rows: enrolled courses with their grade record
+  const myCourseIds = new Set((data?.enrollments || []).filter((e) => e.studentId === currentUser.id).map((e) => e.courseId))
+
   const rows = [...myCourseIds].map((cid) => {
     const c = courseById[cid]
     const g = myGrades.find((x) => x.courseId === cid)
@@ -23,6 +33,9 @@ export default function StudentTranscript() {
   }).filter((r) => r.course)
 
   const totalCredits = rows.reduce((a, r) => a + (r.course.credits || 0), 0)
+
+  if (loading) return <LoadingState label="Loading transcript…" />
+  if (!data) return <Card className="p-6 text-center text-slate-500">Could not load transcript.</Card>
 
   return (
     <div>
@@ -34,7 +47,6 @@ export default function StudentTranscript() {
       />
 
       <Card id="transcript" className="mx-auto max-w-3xl p-8 sm:p-10">
-        {/* Letterhead */}
         <div className="flex items-center justify-between border-b-2 border-brand-600 pb-5">
           <div className="flex items-center gap-3">
             <span className="grid h-12 w-12 place-items-center rounded-xl bg-brand-600 text-white">
@@ -46,12 +58,11 @@ export default function StudentTranscript() {
             </div>
           </div>
           <div className="text-right text-xs text-slate-500">
-            <p>Fall 2026</p>
-            <p>Issued {new Date('2026-10-06').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+            <p>Current Semester</p>
+            <p>Issued {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
           </div>
         </div>
 
-        {/* Student info */}
         <div className="mt-6 grid grid-cols-2 gap-4 text-sm">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Student</p>
@@ -71,7 +82,6 @@ export default function StudentTranscript() {
           </div>
         </div>
 
-        {/* Grades table */}
         <table className="mt-6 w-full text-sm">
           <thead>
             <tr className="border-y border-slate-200 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
@@ -99,7 +109,6 @@ export default function StudentTranscript() {
           </tbody>
         </table>
 
-        {/* Summary */}
         <div className="mt-6 flex items-center justify-between rounded-xl bg-slate-50 px-5 py-4">
           <div className="flex gap-8 text-sm">
             <div>

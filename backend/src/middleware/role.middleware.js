@@ -1,1 +1,13 @@
-// authorize(...roles): role-based access control (admin / professor / student).
+const authorize = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Authentication required.' });
+    }
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({ message: 'Forbidden. You do not have the required role.' });
+    }
+    next();
+  };
+};
+
+module.exports = { authorize };

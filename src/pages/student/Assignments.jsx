@@ -16,7 +16,7 @@ export default function StudentAssignments() {
   const [submitFor, setSubmitFor] = useState(null)
   const [fileName, setFileName] = useState('')
 
-  const myCourseIds = new Set(enrollments.filter((e) => e.studentId === currentUser.id).map((e) => e.courseId))
+  const myCourseIds = new Set(enrollments.filter((e) => e.studentId === currentUser.id && e.status === 'enrolled').map((e) => e.courseId))
   const courseById = useMemo(() => Object.fromEntries(courses.map((c) => [c.id, c])), [courses])
   const mySub = (aid) => submissions.find((s) => s.assignmentId === aid && s.studentId === currentUser.id)
 

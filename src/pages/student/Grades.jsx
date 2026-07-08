@@ -10,7 +10,7 @@ export default function StudentGrades() {
   const { currentUser } = useAuth()
 
   const courseById = useMemo(() => Object.fromEntries(courses.map((c) => [c.id, c])), [courses])
-  const myCourseIds = new Set(enrollments.filter((e) => e.studentId === currentUser.id).map((e) => e.courseId))
+  const myCourseIds = new Set(enrollments.filter((e) => e.studentId === currentUser.id && e.status === 'enrolled').map((e) => e.courseId))
   const myCourses = courses.filter((c) => myCourseIds.has(c.id))
   const myGrades = grades.filter((g) => g.studentId === currentUser.id)
   const { gpa, credits } = calculateGPA(myGrades, courseById)

@@ -12,6 +12,7 @@ const courseSchema = new Schema(
     semester: { type: String, default: 'Fall 2026' },
     schedule: { type: String, default: '' },
     room: { type: String, default: '' },
+    prerequisites: [{ type: Schema.Types.ObjectId, ref: 'Course', default: [] }],
     color: { type: String, default: 'bg-brand-500' },
     status: { type: String, enum: ['active', 'archived'], default: 'active' },
   },

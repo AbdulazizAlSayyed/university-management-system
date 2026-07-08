@@ -19,7 +19,7 @@ export default function ProfessorDashboard() {
   const myAssignmentIds = new Set(assignments.filter((a) => myCourseIds.has(a.courseId)).map((a) => a.id))
 
   const totalStudents = useMemo(() => {
-    const set = new Set(enrollments.filter((e) => myCourseIds.has(e.courseId)).map((e) => e.studentId))
+    const set = new Set(enrollments.filter((e) => myCourseIds.has(e.courseId) && e.status === 'enrolled').map((e) => e.studentId))
     return set.size
   }, [enrollments, myCourses])
 
@@ -64,7 +64,7 @@ export default function ProfessorDashboard() {
                 <CourseCard
                   key={c.id}
                   course={c}
-                  enrolledCount={enrollments.filter((e) => e.courseId === c.id).length}
+                  enrolledCount={enrollments.filter((e) => e.courseId === c.id && e.status === 'enrolled').length}
                   onClick={() => navigate(`/professor/courses/${c.id}`)}
                   footer={<Button variant="soft" size="sm" className="w-full" onClick={(e) => { e.stopPropagation(); navigate(`/professor/courses/${c.id}`) }}>Open classroom <ArrowRight size={14} /></Button>}
                 />

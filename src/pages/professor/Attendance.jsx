@@ -22,7 +22,7 @@ export default function ProfessorAttendance() {
   const [present, setPresent] = useState({})
 
   const roster = useMemo(() => {
-    const ids = new Set(enrollments.filter((e) => e.courseId === courseId).map((e) => e.studentId))
+    const ids = new Set(enrollments.filter((e) => e.courseId === courseId && e.status === 'enrolled').map((e) => e.studentId))
     return users.filter((u) => ids.has(u.id))
   }, [enrollments, users, courseId])
 

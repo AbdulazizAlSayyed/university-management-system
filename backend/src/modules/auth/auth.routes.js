@@ -1,12 +1,12 @@
 import { Router } from 'express'
-import { signup, login, me } from './auth.controller.js'
+import { signup, login, me, updateMe, changePassword } from './auth.controller.js'
 import { verifyToken } from '../../middleware/auth.middleware.js'
 
 const router = Router()
-
 router.post('/signup', signup)
-router.post('/register', signup) // alias for the same handler
+router.post('/register', signup)
 router.post('/login', login)
 router.get('/me', verifyToken, me)
-
+router.patch('/me', verifyToken, updateMe)
+router.patch('/password', verifyToken, changePassword)
 export default router

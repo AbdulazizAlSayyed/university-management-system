@@ -24,7 +24,7 @@ export default function ProfessorClassroom() {
   const [tab, setTab] = useState('materials')
 
   const roster = useMemo(() => {
-    const ids = new Set(data.enrollments.filter((e) => e.courseId === courseId).map((e) => e.studentId))
+    const ids = new Set(data.enrollments.filter((e) => e.courseId === courseId && e.status === 'enrolled').map((e) => e.studentId))
     return data.users.filter((u) => ids.has(u.id))
   }, [data.enrollments, data.users, courseId])
 

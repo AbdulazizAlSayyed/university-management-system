@@ -15,7 +15,7 @@ export default function StudentDashboard() {
   const { currentUser } = useAuth()
   const navigate = useNavigate()
 
-  const myEnrollments = enrollments.filter((e) => e.studentId === currentUser.id)
+  const myEnrollments = enrollments.filter((e) => e.studentId === currentUser.id && e.status === 'enrolled')
   const myCourseIds = new Set(myEnrollments.map((e) => e.courseId))
   const myCourses = courses.filter((c) => myCourseIds.has(c.id))
   const courseById = useMemo(() => Object.fromEntries(courses.map((c) => [c.id, c])), [courses])

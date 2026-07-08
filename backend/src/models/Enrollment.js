@@ -5,7 +5,8 @@ const enrollmentSchema = new Schema(
   {
     studentId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     courseId: { type: Schema.Types.ObjectId, ref: 'Course', required: true },
-    status: { type: String, enum: ['enrolled', 'dropped'], default: 'enrolled' },
+    status: { type: String, enum: ['enrolled', 'waitlisted', 'dropped'], default: 'enrolled' },
+    waitlistedAt: { type: Date, default: null },
     enrolledAt: { type: Date, default: Date.now },
   },
   { timestamps: true }

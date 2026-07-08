@@ -10,7 +10,7 @@ export default function StudentExams() {
   const { currentUser } = useAuth()
 
   const courseById = useMemo(() => Object.fromEntries(courses.map((c) => [c.id, c])), [courses])
-  const myCourseIds = new Set(enrollments.filter((e) => e.studentId === currentUser.id).map((e) => e.courseId))
+  const myCourseIds = new Set(enrollments.filter((e) => e.studentId === currentUser.id && e.status === 'enrolled').map((e) => e.courseId))
 
   const myExams = exams.filter((x) => myCourseIds.has(x.courseId)).sort((a, b) => new Date(a.date) - new Date(b.date))
   const upcoming = myExams.filter((x) => daysUntil(x.date) >= 0)

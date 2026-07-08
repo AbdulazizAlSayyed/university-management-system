@@ -35,7 +35,7 @@ function UserFormModal({ open, onClose, onSave, initial, saving }) {
       footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button onClick={submit} disabled={saving}>{saving ? 'Saving...' : (initial ? 'Save changes' : 'Create user')}</Button></>}>
       <form onSubmit={submit} className="space-y-4">
         <FormField label="Role">
-          <Select value={form.role} onChange={set('role')} disabled={!!initial}>
+          <Select value={form.role} onChange={set('role')}>
             <option value="student">Student</option>
             <option value="professor">Professor</option>
             <option value="admin">Administrator</option>

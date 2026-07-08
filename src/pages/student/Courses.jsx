@@ -13,7 +13,7 @@ export default function StudentCourses() {
   const navigate = useNavigate()
 
   const userById = useMemo(() => Object.fromEntries(users.map((u) => [u.id, u])), [users])
-  const myCourseIds = new Set(enrollments.filter((e) => e.studentId === currentUser.id).map((e) => e.courseId))
+  const myCourseIds = new Set(enrollments.filter((e) => e.studentId === currentUser.id && e.status === 'enrolled').map((e) => e.courseId))
   const myCourses = courses.filter((c) => myCourseIds.has(c.id))
 
   return (
@@ -34,7 +34,7 @@ export default function StudentCourses() {
               key={c.id}
               course={c}
               professorName={userById[c.professorId] ? fullName(userById[c.professorId]) : 'TBA'}
-              enrolledCount={enrollments.filter((e) => e.courseId === c.id).length}
+              enrolledCount={enrollments.filter((e) => e.courseId === c.id && e.status === 'enrolled').length}
               onClick={() => navigate(`/student/courses/${c.id}`)}
               footer={<Button variant="soft" size="sm" className="w-full" onClick={(e) => { e.stopPropagation(); navigate(`/student/courses/${c.id}`) }}>Open classroom <ArrowRight size={14} /></Button>}
             />

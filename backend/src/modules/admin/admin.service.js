@@ -1,12 +1,14 @@
 import User from '../../models/User.js'
 import Course from '../../models/Course.js'
 import Enrollment from '../../models/Enrollment.js'
+import Grade from '../../models/Grade.js'
 import Exam from '../../models/Exam.js'
 import Announcement from '../../models/Announcement.js'
 import CalendarEvent from '../../models/CalendarEvent.js'
 import AuditLog from '../../models/AuditLog.js'
 import ApiError from '../../utils/ApiError.js'
 import { logAudit } from '../../utils/audit.js'
+import { notify } from '../../utils/notify.js'
 
 const name = (u) => (u ? `${u.firstName} ${u.lastName}` : 'unknown')
 
@@ -97,6 +99,7 @@ export async function deleteUser(id, actorId) {
   const user = await User.findByIdAndDelete(id)
   if (!user) throw new ApiError(404, 'User not found')
   await Enrollment.deleteMany({ studentId: id })
+  await Grade.deleteMany({ studentId: id })
   await logAudit(actorId, 'delete', 'User', `Deleted account "${name(user)}"`)
   return user
 }
@@ -107,19 +110,45 @@ export async function setUserStatus(id, status, actorId) {
   if (!user) throw new ApiError(404, 'User not found')
   const label = status === 'active' ? 'Activated' : status === 'inactive' ? 'Deactivated' : 'Set pending'
   await logAudit(actorId, 'update', 'User', `${label} account "${name(user)}"`)
+  if (status === 'active') {
+    await notify(user._id, { type: 'system', title: 'Account activated', body: 'Your account has been activated. Welcome!', link: `/${user.role}/dashboard` })
+  }
   return user
 }
 
 // ------------------------------ Courses ------------------------------
 export async function listCourses() {
-  const courses = await Course.find().sort({ code: 1 }).populate('professorId', 'firstName lastName department')
+  const courses = await Course.find().sort({ code: 1 })
+    .populate('professorId', 'firstName lastName department')
+    .populate('prerequisites', 'code name')
   const counts = await Enrollment.aggregate([
-    { $match: { status: 'enrolled' } },
-    { $group: { _id: '$courseId', count: { $sum: 1 } } },
+    { $match: { status: { $in: ['enrolled', 'waitlisted'] } } },
+    { $group: { _id: { courseId: '$courseId', status: '$status' }, count: { $sum: 1 } } },
   ])
-  const map = {}
-  counts.forEach((c) => { map[String(c._id)] = c.count })
-  return courses.map((c) => ({ ...c.toJSON(), enrolledCount: map[String(c._id)] || 0 }))
+  const enrolledMap = {}, waitlistMap = {}
+  counts.forEach((c) => {
+    const key = String(c._id.courseId)
+    if (c._id.status === 'enrolled') enrolledMap[key] = c.count
+    else waitlistMap[key] = c.count
+  })
+  return courses.map((c) => ({
+    ...c.toJSON(),
+    enrolledCount: enrolledMap[String(c._id)] || 0,
+    waitlistCount: waitlistMap[String(c._id)] || 0,
+  }))
+}
+
+// Strip self-references and de-duplicate the prerequisite list.
+function cleanPrereqs(data, ownId = null) {
+  if (!Array.isArray(data.prerequisites)) return data
+  const seen = new Set()
+  data.prerequisites = data.prerequisites.filter((p) => {
+    const id = String(p)
+    if (!id || (ownId && id === String(ownId)) || seen.has(id)) return false
+    seen.add(id)
+    return true
+  })
+  return data
 }
 
 export async function createCourse(data, actorId) {
@@ -127,16 +156,22 @@ export async function createCourse(data, actorId) {
     const exists = await Course.findOne({ code: String(data.code).toUpperCase() })
     if (exists) throw new ApiError(409, 'Course code already exists.')
   }
-  const course = await Course.create(data)
+  const course = await Course.create(cleanPrereqs(data))
   await logAudit(actorId, 'create', 'Course', `Created course ${course.code} - ${course.name}`)
-  return course.populate({ path: 'professorId', select: 'firstName lastName department' })
+  return course.populate([
+    { path: 'professorId', select: 'firstName lastName department' },
+    { path: 'prerequisites', select: 'code name' },
+  ])
 }
 
 export async function updateCourse(id, data, actorId) {
-  const course = await Course.findByIdAndUpdate(id, data, { new: true, runValidators: true })
+  const course = await Course.findByIdAndUpdate(id, cleanPrereqs(data, id), { new: true, runValidators: true })
     .populate('professorId', 'firstName lastName department')
+    .populate('prerequisites', 'code name')
   if (!course) throw new ApiError(404, 'Course not found')
   await logAudit(actorId, 'update', 'Course', `Updated course ${course.code}`)
+  // Capacity may have increased - fill any freed seats from the waitlist.
+  await promoteFromWaitlist(course._id)
   return course
 }
 
@@ -145,38 +180,119 @@ export async function deleteCourse(id, actorId) {
   if (!course) throw new ApiError(404, 'Course not found')
   await Enrollment.deleteMany({ courseId: id })
   await Exam.deleteMany({ courseId: id })
+  await Grade.deleteMany({ courseId: id })
+  // Remove this course from other courses' prerequisite lists.
+  await Course.updateMany({ prerequisites: id }, { $pull: { prerequisites: id } })
   await logAudit(actorId, 'delete', 'Course', `Deleted course ${course.code}`)
   return course
 }
 
 // ------------------------------ Enrollment ------------------------------
+const ROSTER_FIELDS = 'firstName lastName email studentId program status avatarColor'
+
 export async function getRoster(courseId) {
-  const rows = await Enrollment.find({ courseId, status: 'enrolled' })
-    .populate('studentId', 'firstName lastName email studentId program status avatarColor')
-  return rows.map((r) => r.studentId).filter(Boolean)
+  const [enrolledRows, waitlistRows] = await Promise.all([
+    Enrollment.find({ courseId, status: 'enrolled' }).populate('studentId', ROSTER_FIELDS),
+    Enrollment.find({ courseId, status: 'waitlisted' }).sort({ waitlistedAt: 1 }).populate('studentId', ROSTER_FIELDS),
+  ])
+  return {
+    enrolled: enrolledRows.map((r) => r.studentId).filter(Boolean),
+    waitlist: waitlistRows.map((r) => r.studentId).filter(Boolean),
+  }
+}
+
+// True if the student has a final passing grade (not F) in the course.
+async function hasPassed(studentId, courseId) {
+  const g = await Grade.findOne({ studentId, courseId, status: 'final' })
+  return !!g && !!g.letter && g.letter.toUpperCase() !== 'F'
+}
+
+// Returns the list of prerequisite courses the student has NOT passed yet.
+export async function missingPrerequisites(studentId, course) {
+  const missing = []
+  for (const prereqId of course.prerequisites || []) {
+    if (!(await hasPassed(studentId, prereqId))) {
+      const p = await Course.findById(prereqId).select('code name')
+      if (p) missing.push(p)
+    }
+  }
+  return missing
+}
+
+// Move waitlisted students into freed seats (FIFO) and notify them.
+export async function promoteFromWaitlist(courseId) {
+  const course = await Course.findById(courseId)
+  if (!course) return []
+  const enrolled = await Enrollment.countDocuments({ courseId, status: 'enrolled' })
+  let free = course.capacity - enrolled
+  if (free <= 0) return []
+  const next = await Enrollment.find({ courseId, status: 'waitlisted' }).sort({ waitlistedAt: 1 }).limit(free)
+  const promoted = []
+  for (const row of next) {
+    row.status = 'enrolled'
+    row.waitlistedAt = null
+    row.enrolledAt = new Date()
+    await row.save()
+    promoted.push(row.studentId)
+    await notify(row.studentId, {
+      type: 'enrollment',
+      title: `Enrolled in ${course.code}`,
+      body: `A seat opened up in ${course.code} - ${course.name}. You have been moved from the waitlist and are now enrolled.`,
+      link: '/student/courses',
+    })
+    await logAudit(null, 'update', 'Enrollment', `Promoted a student from the waitlist of ${course.code}`)
+  }
+  return promoted
 }
 
 export async function enrollStudent(studentId, courseId, actorId) {
   const course = await Course.findById(courseId)
   if (!course) throw new ApiError(404, 'Course not found')
-  const enrolled = await Enrollment.countDocuments({ courseId, status: 'enrolled' })
-  if (enrolled >= course.capacity) throw new ApiError(400, 'Course is at full capacity.')
+
   const existing = await Enrollment.findOne({ studentId, courseId })
+  if (existing && existing.status === 'enrolled') throw new ApiError(409, 'Student is already enrolled.')
+  if (existing && existing.status === 'waitlisted') throw new ApiError(409, 'Student is already on the waitlist.')
+
+  // Prerequisite check: must have a final passing grade in every prerequisite.
+  const missing = await missingPrerequisites(studentId, course)
+  if (missing.length) {
+    throw new ApiError(400, `Missing prerequisite${missing.length > 1 ? 's' : ''}: ${missing.map((m) => m.code).join(', ')}. The student must pass ${missing.length > 1 ? 'these courses' : 'this course'} first.`)
+  }
+
+  // Capacity check: full course -> waitlist (FIFO).
+  const enrolled = await Enrollment.countDocuments({ courseId, status: 'enrolled' })
+  const isFull = enrolled >= course.capacity
+  const status = isFull ? 'waitlisted' : 'enrolled'
+
   if (existing) {
-    if (existing.status === 'enrolled') throw new ApiError(409, 'Student is already enrolled.')
-    existing.status = 'enrolled'
+    existing.status = status
+    existing.waitlistedAt = isFull ? new Date() : null
+    existing.enrolledAt = new Date()
     await existing.save()
   } else {
-    await Enrollment.create({ studentId, courseId, status: 'enrolled' })
+    await Enrollment.create({ studentId, courseId, status, waitlistedAt: isFull ? new Date() : null })
   }
-  await logAudit(actorId, 'create', 'Enrollment', `Enrolled a student in ${course.code}`)
-  return getRoster(courseId)
+
+  if (isFull) {
+    await notify(studentId, {
+      type: 'enrollment',
+      title: `Waitlisted for ${course.code}`,
+      body: `${course.code} is at full capacity. You have been added to the waitlist and will be enrolled automatically when a seat opens.`,
+      link: '/student/catalog',
+    })
+  }
+  await logAudit(actorId, 'create', 'Enrollment', isFull
+    ? `Added a student to the waitlist of ${course.code} (course full)`
+    : `Enrolled a student in ${course.code}`)
+  return { ...(await getRoster(courseId)), waitlisted: isFull }
 }
 
 export async function dropStudent(studentId, courseId, actorId) {
-  await Enrollment.deleteOne({ studentId, courseId })
+  const removed = await Enrollment.findOneAndDelete({ studentId, courseId })
   const course = await Course.findById(courseId)
   await logAudit(actorId, 'delete', 'Enrollment', `Removed a student from ${course ? course.code : 'a course'}`)
+  // Freed a seat -> promote the first student on the waitlist.
+  if (removed && removed.status === 'enrolled') await promoteFromWaitlist(courseId)
   return getRoster(courseId)
 }
 

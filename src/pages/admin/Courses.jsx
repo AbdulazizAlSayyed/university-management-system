@@ -1,24 +1,38 @@
 import { useState, useEffect, useCallback } from 'react'
-import { BookOpen, Plus, Pencil, Trash2, Search, AlertTriangle } from 'lucide-react'
+import { BookOpen, Plus, Pencil, Trash2, Search, AlertTriangle, Archive } from 'lucide-react'
 import * as adminApi from '../../api/admin'
 import { useToast } from '../../context/ToastContext'
 import {
-  PageHeader, Card, Button, IconButton, Modal, ConfirmDialog, FormField, Input,
+  PageHeader, Card, Button, IconButton, Badge, Modal, ConfirmDialog, FormField, Input,
   Textarea, Select, SearchInput, EmptyState, LoadingState,
 } from '../../components/ui'
 import CourseCard from '../../components/CourseCard'
 import { fullName } from '../../utils/helpers'
 
 const COLORS = ['bg-brand-500', 'bg-emerald-500', 'bg-indigo-500', 'bg-rose-500', 'bg-amber-500', 'bg-sky-500', 'bg-violet-500', 'bg-teal-500']
-const EMPTY = { code: '', name: '', description: '', credits: 3, capacity: 30, professorId: '', schedule: '', room: '', color: 'bg-brand-500' }
+const EMPTY = { code: '', name: '', description: '', credits: 3, capacity: 30, professorId: '', schedule: '', room: '', color: 'bg-brand-500', prerequisites: [] }
 
-function CourseFormModal({ open, onClose, onSave, initial, professors, saving }) {
+// Prerequisites may arrive populated ({id, code, name}) or as raw ids.
+const prereqId = (p) => p?.id || p?._id || p
+const prereqIds = (list) => (list || []).map(prereqId).filter(Boolean)
+
+function CourseFormModal({ open, onClose, onSave, initial, professors, courses, saving }) {
   const start = initial
-    ? { ...initial, professorId: initial.professorId?.id || initial.professorId || '' }
+    ? { ...initial, professorId: initial.professorId?.id || initial.professorId || '', prerequisites: prereqIds(initial.prerequisites) }
     : EMPTY
   const [form, setForm] = useState(start)
   const [errors, setErrors] = useState({})
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
+
+  // Courses that can be selected as prerequisites (any course except itself)
+  const prereqOptions = courses.filter((c) => !initial || c.id !== initial.id)
+  const togglePrereq = (id) =>
+    setForm((f) => ({
+      ...f,
+      prerequisites: f.prerequisites.includes(id)
+        ? f.prerequisites.filter((p) => p !== id)
+        : [...f.prerequisites, id],
+    }))
 
   const submit = (e) => {
     e.preventDefault()
@@ -54,6 +68,26 @@ function CourseFormModal({ open, onClose, onSave, initial, professors, saving })
           <FormField label="Schedule"><Input value={form.schedule} onChange={set('schedule')} placeholder="Mon & Wed - 09:00-10:30" /></FormField>
           <FormField label="Room"><Input value={form.room} onChange={set('room')} placeholder="Hall A-101" /></FormField>
         </div>
+        <FormField label="Prerequisites" hint="Students must pass these courses before they can enroll.">
+          {prereqOptions.length === 0 ? (
+            <p className="text-sm text-slate-400">No other courses available.</p>
+          ) : (
+            <div className="flex max-h-40 flex-col gap-1 overflow-y-auto rounded-lg border border-slate-200 p-2">
+              {prereqOptions.map((c) => (
+                <label key={c.id} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm hover:bg-slate-50">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-slate-300"
+                    checked={form.prerequisites.includes(c.id)}
+                    onChange={() => togglePrereq(c.id)}
+                  />
+                  <span className="font-medium text-slate-700">{c.code}</span>
+                  <span className="truncate text-slate-500">{c.name}</span>
+                </label>
+              ))}
+            </div>
+          )}
+        </FormField>
         <FormField label="Accent color">
           <div className="flex flex-wrap gap-2">
             {COLORS.map((c) => (
@@ -113,6 +147,14 @@ export default function AdminCourses() {
     catch (e) { toast(adminApi.errMsg(e), 'error') }
   }
 
+  const archive = async (c) => {
+    try {
+      await adminApi.updateCourse(c.id, { status: c.status === 'archived' ? 'active' : 'archived' })
+      toast(c.status === 'archived' ? 'Course unarchived.' : 'Course archived.', 'info')
+      load()
+    } catch (e) { toast(adminApi.errMsg(e), 'error') }
+  }
+
   return (
     <div>
       <PageHeader title="Course Management" subtitle="Create courses, set capacity, and assign professors." icon={BookOpen}
@@ -132,15 +174,23 @@ export default function AdminCourses() {
             <CourseCard key={c.id} course={c}
               professorName={c.professorId ? fullName(c.professorId) : 'Unassigned'}
               enrolledCount={c.enrolledCount}
-              footer={<div className="flex items-center justify-end gap-1">
-                <IconButton icon={Pencil} title="Edit" onClick={() => openEdit(c)} className="hover:text-brand-600" />
-                <IconButton icon={Trash2} title="Delete" onClick={() => setConfirmDel(c)} className="hover:text-red-600" />
+              right={c.status === 'archived' ? <Badge tone="slate">Archived</Badge> : c.waitlistCount > 0 ? <Badge tone="amber">{c.waitlistCount} waitlisted</Badge> : null}
+              footer={<div className="flex items-center justify-between gap-2">
+                <div className="flex min-w-0 flex-wrap items-center gap-1">
+                  {(c.prerequisites || []).length > 0 && <span className="text-xs text-slate-400">Prereq:</span>}
+                  {(c.prerequisites || []).map((p) => <Badge key={p.id || p} tone="slate">{p.code || p}</Badge>)}
+                </div>
+                <div className="flex shrink-0 items-center justify-end gap-1">
+                  <IconButton icon={Archive} title={c.status === 'archived' ? 'Unarchive' : 'Archive'} onClick={() => archive(c)} className="hover:text-amber-600" />
+                  <IconButton icon={Pencil} title="Edit" onClick={() => openEdit(c)} className="hover:text-brand-600" />
+                  <IconButton icon={Trash2} title="Delete" onClick={() => setConfirmDel(c)} className="hover:text-red-600" />
+                </div>
               </div>} />
           ))}
         </div>
       )}
 
-      {modalOpen && <CourseFormModal open={modalOpen} onClose={() => setModalOpen(false)} onSave={handleSave} initial={editing} professors={professors} saving={saving} />}
+      {modalOpen && <CourseFormModal open={modalOpen} onClose={() => setModalOpen(false)} onSave={handleSave} initial={editing} professors={professors} courses={courses} saving={saving} />}
       <ConfirmDialog open={!!confirmDel} onClose={() => setConfirmDel(null)} onConfirm={doDelete}
         title="Delete course?" message={confirmDel ? `This removes ${confirmDel.code} - ${confirmDel.name} and all its enrollments.` : ''} confirmLabel="Delete" />
     </div>

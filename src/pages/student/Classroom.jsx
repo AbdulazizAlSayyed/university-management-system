@@ -31,7 +31,7 @@ export default function StudentClassroom() {
   const [submitFor, setSubmitFor] = useState(null)
   const [fileName, setFileName] = useState('')
 
-  const isEnrolled = data.enrollments.some((e) => e.studentId === currentUser.id && e.courseId === courseId)
+  const isEnrolled = data.enrollments.some((e) => e.studentId === currentUser.id && e.courseId === courseId && e.status === 'enrolled')
   const professor = course ? data.users.find((u) => u.id === course.professorId) : null
 
   const materials = data.materials.filter((m) => m.courseId === courseId)

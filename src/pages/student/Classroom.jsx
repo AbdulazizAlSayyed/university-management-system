@@ -4,12 +4,13 @@ import {
   ArrowLeft, FileText, Megaphone, ClipboardList, Download, Link as LinkIcon,
   Clock, Upload, CheckCircle2, Pin, Award,
 } from 'lucide-react'
-import { useData } from '../../context/DataContext'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
+import useStudentData from '../../hooks/useStudentData'
+import { studentApi, uploadApi } from '../../api'
 import {
   Card, CardHeader, Button, IconButton, Badge, StatusBadge, Tabs, Modal, FileDropzone,
-  EmptyState,
+  EmptyState, LoadingState,
 } from '../../components/ui'
 import { fullName, formatDate, timeAgo, daysUntil, fileTypeMeta, classNames } from '../../utils/helpers'
 
@@ -17,10 +18,10 @@ export default function StudentClassroom() {
   const { courseId } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
-  const data = useData()
+  const { loading, courses, users, enrollments, announcements, assignments, submitAssignment } = useStudentData()
   const { currentUser } = useAuth()
   const { toast } = useToast()
-  const course = data.courses.find((c) => c.id === courseId)
+  const course = courses.find((c) => c.id === courseId)
   const requestedTab = new URLSearchParams(location.search).get('tab')
   const [tab, setTab] = useState(() => {
     if (requestedTab && ['materials', 'announcements', 'assignments'].includes(requestedTab)) {
@@ -29,16 +30,32 @@ export default function StudentClassroom() {
     return 'materials'
   })
   const [submitFor, setSubmitFor] = useState(null)
-  const [fileName, setFileName] = useState('')
+  const [fileObj, setFileObj] = useState(null)
+  const [classroom, setClassroom] = useState(null)
+  const [loadingClassroom, setLoadingClassroom] = useState(true)
 
-  const isEnrolled = data.enrollments.some((e) => e.studentId === currentUser.id && e.courseId === courseId)
-  const professor = course ? data.users.find((u) => u.id === course.professorId) : null
+  useEffect(() => {
+    if (!courseId) return
+    let cancelled = false
+    setLoadingClassroom(true)
+    studentApi.getClassroom(courseId).then((res) => {
+      if (!cancelled) { setClassroom(res); setLoadingClassroom(false) }
+    }).catch(() => { if (!cancelled) setLoadingClassroom(false) })
+    return () => { cancelled = true }
+  }, [courseId])
 
-  const materials = data.materials.filter((m) => m.courseId === courseId)
-  const courseAnns = data.announcements.filter((a) => a.scope === 'course' && a.courseId === courseId)
-    .sort((a, b) => (b.pinned - a.pinned) || new Date(b.createdAt) - new Date(a.createdAt))
-  const courseAssignments = data.assignments.filter((a) => a.courseId === courseId)
-  const mySub = (aid) => data.submissions.find((s) => s.assignmentId === aid && s.studentId === currentUser.id)
+  const isEnrolled = enrollments.some((e) => e.studentId === currentUser.id && e.courseId === courseId && e.status === 'enrolled')
+  const professor = course ? users.find((u) => u.id === course.professorId) : null
+
+  const materials = classroom?.materials || []
+  const courseAnns = (classroom?.announcements || announcements)
+    .filter((a) => a.courseId === courseId)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+  const courseAssignments = classroom?.assignments?.length
+    ? classroom.assignments
+    : assignments.filter((a) => a.courseId === courseId)
+  const submissions = classroom?.submissions || []
+  const mySub = (aid) => submissions.find((s) => s.assignmentId === aid && s.studentId === currentUser.id)
 
   useEffect(() => {
     if (requestedTab && ['materials', 'announcements', 'assignments'].includes(requestedTab)) {
@@ -59,16 +76,21 @@ export default function StudentClassroom() {
     navigate({ pathname: `/student/courses/${courseId}`, search: `?tab=${nextTab}` }, { replace: true })
   }
 
+  if (loading) return <LoadingState />
   if (!course || !isEnrolled) {
     return <Card><EmptyState icon={FileText} title="Course unavailable" message="You are not enrolled in this course." action={<Button onClick={() => navigate('/student/courses')}>Back to my courses</Button>} /></Card>
   }
 
-  const doSubmit = () => {
-    if (!fileName) return toast('Attach a file to submit.', 'error')
-    data.submitAssignment(submitFor.id, currentUser.id, fileName)
-    toast('Assignment submitted!', 'success')
-    setSubmitFor(null)
-    setFileName('')
+  const doSubmit = async () => {
+    if (!fileObj) return toast('Attach a file to submit.', 'error')
+    try {
+      await submitAssignment(submitFor.id || submitFor._id, fileObj)
+      toast('Assignment submitted!', 'success')
+      setSubmitFor(null)
+      setFileObj(null)
+    } catch (err) {
+      toast('Failed to submit', 'error')
+    }
   }
 
   const tabs = [
@@ -121,7 +143,11 @@ export default function StudentClassroom() {
                             <p className="truncate text-sm font-semibold text-slate-700">{m.title}</p>
                             <p className="truncate text-xs text-slate-400">{m.fileName || m.link} {m.size ? `· ${m.size}` : ''}</p>
                           </div>
-                          <Button size="sm" variant="soft" icon={m.type === 'link' ? LinkIcon : Download} onClick={() => toast('Download started (demo).', 'info')}>
+                          <Button size="sm" variant="soft" icon={m.type === 'link' ? LinkIcon : Download} onClick={() => {
+                            if (m.type === 'link' && m.link) window.open(m.link, '_blank', 'noopener')
+                            else if (m.fileUrl) window.open(uploadApi.getFileUrl(m.fileUrl), '_blank')
+                            else toast('Re-upload this material from the professor panel to enable download.', 'error')
+                          }}>
                             {m.type === 'link' ? 'Open' : 'Download'}
                           </Button>
                         </li>
@@ -173,6 +199,11 @@ export default function StudentClassroom() {
                         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
                           <Badge tone={closed ? 'slate' : d <= 3 ? 'red' : 'amber'}><Clock size={11} /> {closed ? 'Closed' : d === 0 ? 'Due today' : `Due ${formatDate(a.dueDate)}`}</Badge>
                           <Badge tone="slate">{a.maxScore} pts</Badge>
+                          {a.attachedFileUrl && (
+                            <button onClick={() => window.open(uploadApi.getFileUrl(a.attachedFileUrl), '_blank')} className="flex items-center gap-1 rounded bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 hover:bg-slate-200">
+                              <Download size={11} /> Attachment
+                            </button>
+                          )}
                           {sub && <StatusBadge status={sub.status} />}
                         </div>
                         {sub?.status === 'graded' && (
@@ -184,11 +215,11 @@ export default function StudentClassroom() {
                       </div>
                       <div className="shrink-0">
                         {sub ? (
-                          <Button variant="secondary" size="sm" icon={Upload} disabled={closed} onClick={() => { setSubmitFor(a); setFileName('') }}>
+                          <Button variant="secondary" size="sm" icon={Upload} disabled={closed} onClick={() => { setSubmitFor(a); setFileObj(null) }}>
                             {sub.status === 'graded' ? 'Graded' : 'Resubmit'}
                           </Button>
                         ) : (
-                          <Button size="sm" icon={Upload} disabled={closed} onClick={() => { setSubmitFor(a); setFileName('') }}>
+                          <Button size="sm" icon={Upload} disabled={closed} onClick={() => { setSubmitFor(a); setFileObj(null) }}>
                             {closed ? 'Closed' : 'Submit'}
                           </Button>
                         )}
@@ -216,7 +247,7 @@ export default function StudentClassroom() {
               <p className="flex items-center gap-1.5"><Clock size={14} className="text-slate-400" /> Due {formatDate(submitFor.dueDate)} · {submitFor.maxScore} points</p>
             </div>
           )}
-          <FileDropzone fileName={fileName} onFile={setFileName} hint="PDF, DOCX, ZIP — up to 50 MB" />
+          <FileDropzone fileName={fileObj?.name} fileObject={fileObj} onFile={setFileObj} hint="PDF, DOCX, ZIP — up to 50 MB" />
         </div>
       </Modal>
     </div>

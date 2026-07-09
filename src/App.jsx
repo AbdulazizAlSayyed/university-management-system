@@ -32,6 +32,7 @@ import ProfessorGrading from './pages/professor/Grading'
 import ProfessorGrades from './pages/professor/Grades'
 import ProfessorAttendance from './pages/professor/Attendance'
 import ProfessorAnnouncements from './pages/professor/Announcements'
+import ProfessorNotifications from './pages/professor/Notifications'
 
 // Student
 import StudentDashboard from './pages/student/Dashboard'
@@ -98,6 +99,7 @@ export default function App() {
         <Route path="grades" element={<ProfessorGrades />} />
         <Route path="attendance" element={<ProfessorAttendance />} />
         <Route path="announcements" element={<ProfessorAnnouncements />} />
+        <Route path="notifications" element={<ProfessorNotifications />} />
         <Route path="profile" element={<Profile />} />
       </Route>
 

@@ -1,51 +1,87 @@
-import { useState, useMemo } from 'react'
-import { GraduationCap, Save } from 'lucide-react'
-import { useData } from '../../context/DataContext'
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import { GraduationCap, Save, Search } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import useProfessorData from '../../hooks/useProfessorData'
+import { professorApi } from '../../api'
 import { useToast } from '../../context/ToastContext'
 import {
-  PageHeader, Card, CardHeader, Button, Avatar, StatusBadge, Select, EmptyState,
+  PageHeader, Card, CardHeader, Button, Avatar, StatusBadge, Select, EmptyState, LoadingState, SearchInput,
 } from '../../components/ui'
 import { fullName, scoreToLetter, gradeColor, classNames } from '../../utils/helpers'
 
 export default function ProfessorGrades() {
-  const { courses, users, enrollments, grades, setFinalGrade } = useData()
+  const api = useProfessorData()
   const { currentUser } = useAuth()
   const { toast } = useToast()
 
+  const courses = api.courses
+  const users = api.users
+  const enrollments = api.enrollments
+  const { loading } = api
   const myCourses = courses.filter((c) => c.professorId === currentUser.id)
-  const [courseId, setCourseId] = useState(myCourses[0]?.id || '')
+  const [courseId, setCourseId] = useState('')
+  const [search, setSearch] = useState('')
+
+  useEffect(() => {
+    if (!courseId && myCourses.length > 0) setCourseId(myCourses[0].id)
+  }, [myCourses, courseId])
   const [scores, setScores] = useState({})
+  const [courseGrades, setCourseGrades] = useState([])
+
+  const loadGrades = useCallback(async () => {
+    if (!courseId) return
+    try {
+      const data = await professorApi.getCourseGrades(courseId)
+      setCourseGrades(data.roster || data.grades || [])
+    } catch { setCourseGrades([]) }
+  }, [courseId])
+
+  useEffect(() => { loadGrades() }, [loadGrades])
 
   const roster = useMemo(() => {
     const ids = new Set(enrollments.filter((e) => e.courseId === courseId).map((e) => e.studentId))
     return users.filter((u) => ids.has(u.id))
   }, [enrollments, users, courseId])
 
-  const gradeFor = (sid) => grades.find((g) => g.studentId === sid && g.courseId === courseId)
+  const q = search.toLowerCase()
+  const filteredRoster = roster.filter((s) => !q || fullName(s).toLowerCase().includes(q))
 
-  const save = (sid) => {
+  const gradeFor = (sid) => {
+    const entry = courseGrades.find((r) => r.id === sid)
+    return entry?.grade || null
+  }
+
+  const save = async (sid) => {
     const val = scores[sid]
     if (val === undefined || val === '') return toast('Enter a score.', 'error')
     const num = Number(val)
     if (isNaN(num) || num < 0 || num > 100) return toast('Score must be 0–100.', 'error')
-    setFinalGrade(sid, courseId, num, currentUser.id)
-    toast('Final grade saved.', 'success')
-    setScores((s) => ({ ...s, [sid]: '' }))
+    try {
+      await professorApi.setFinalGrade(courseId, sid, num)
+      toast('Final grade saved.', 'success')
+      setScores((s) => ({ ...s, [sid]: '' }))
+      loadGrades()
+    } catch {
+      toast('Failed to save.', 'error')
+    }
   }
 
-  const saveAll = () => {
+  const saveAll = async () => {
     let n = 0
-    roster.forEach((s) => {
+    for (const s of roster) {
       const val = scores[s.id]
       if (val !== undefined && val !== '' && !isNaN(Number(val))) {
-        setFinalGrade(s.id, courseId, Number(val), currentUser.id)
-        n++
+        try {
+          await professorApi.setFinalGrade(courseId, s.id, Number(val))
+          n++
+        } catch { /* skip */ }
       }
-    })
-    if (n) { toast(`${n} grade${n > 1 ? 's' : ''} saved.`, 'success'); setScores({}) }
+    }
+    if (n) { toast(`${n} grade${n > 1 ? 's' : ''} saved.`, 'success'); setScores({}); loadGrades() }
     else toast('No scores entered.', 'info')
   }
+
+  if (loading) return <div><PageHeader title="Final Grades" subtitle="Loading…" icon={GraduationCap} /><LoadingState /></div>
 
   return (
     <div>
@@ -58,15 +94,18 @@ export default function ProfessorGrades() {
 
       <Card className="mb-5 p-4">
         <label className="field-label">Course</label>
-        <Select className="sm:w-96" value={courseId} onChange={(e) => setCourseId(e.target.value)}>
-          {myCourses.map((c) => <option key={c.id} value={c.id}>{c.code} — {c.name}</option>)}
-        </Select>
+        <div className="flex flex-wrap items-center gap-3">
+          <Select className="sm:w-96" value={courseId} onChange={(e) => setCourseId(e.target.value)}>
+            {myCourses.map((c) => <option key={c.id} value={c.id}>{c.code} — {c.name}</option>)}
+          </Select>
+          <SearchInput className="min-w-[200px] flex-1" placeholder="Search student…" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
       </Card>
 
       <Card className="overflow-hidden">
-        <CardHeader title="Grade Sheet" subtitle={`${roster.length} students`} icon={GraduationCap} />
-        {roster.length === 0 ? (
-          <EmptyState icon={GraduationCap} title="No students enrolled" message="This course has no enrolled students yet." />
+        <CardHeader title="Grade Sheet" subtitle={`${filteredRoster.length} of ${roster.length} students`} icon={GraduationCap} />
+        {filteredRoster.length === 0 ? (
+          <EmptyState icon={GraduationCap} title={search ? 'No students match your search' : 'No students enrolled'} message={search ? 'Try a different search term.' : 'This course has no enrolled students yet.'} />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -77,7 +116,7 @@ export default function ProfessorGrades() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {roster.map((s) => {
+                {filteredRoster.map((s) => {
                   const g = gradeFor(s.id)
                   const preview = scores[s.id] !== undefined && scores[s.id] !== '' ? scoreToLetter(Number(scores[s.id])) : null
                   return (

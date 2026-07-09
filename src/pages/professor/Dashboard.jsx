@@ -1,27 +1,46 @@
-import { useMemo } from 'react'
+import { useMemo, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   BookOpen, Users, PenSquare, CalendarClock, ArrowRight, Clock, ClipboardList,
 } from 'lucide-react'
-import { useData } from '../../context/DataContext'
 import { useAuth } from '../../context/AuthContext'
-import { PageHeader, StatCard, Card, CardHeader, Button, Badge, EmptyState, Avatar } from '../../components/ui'
+import { professorApi } from '../../api'
+import useProfessorData from '../../hooks/useProfessorData'
+import { PageHeader, StatCard, Card, CardHeader, Button, Badge, EmptyState, Avatar, LoadingState } from '../../components/ui'
 import CourseCard from '../../components/CourseCard'
 import { fullName, formatDate, daysUntil, classNames } from '../../utils/helpers'
 
 export default function ProfessorDashboard() {
-  const { courses, enrollments, assignments, submissions, users } = useData()
+  const api = useProfessorData()
+  const { loading } = api
   const { currentUser } = useAuth()
   const navigate = useNavigate()
+  const [dashboardData, setDashboardData] = useState(null)
+
+  const courses = api.courses
+  const enrollments = api.enrollments
+  const assignments = api.assignments
+  const submissions = api.submissions
+  const users = api.users
 
   const myCourses = courses.filter((c) => c.professorId === currentUser.id)
   const myCourseIds = new Set(myCourses.map((c) => c.id))
   const myAssignmentIds = new Set(assignments.filter((a) => myCourseIds.has(a.courseId)).map((a) => a.id))
 
-  const totalStudents = useMemo(() => {
+  useEffect(() => {
+    if (!api.loading) {
+      professorApi.getDashboard()
+        .then((data) => setDashboardData(data))
+        .catch(() => {})
+    }
+  }, [api.loading])
+
+  const computedTotalStudents = useMemo(() => {
     const set = new Set(enrollments.filter((e) => myCourseIds.has(e.courseId)).map((e) => e.studentId))
     return set.size
   }, [enrollments, myCourses])
+
+  const totalStudents = dashboardData?.totalStudents ?? computedTotalStudents
 
   const pendingSubs = submissions.filter((s) => myAssignmentIds.has(s.assignmentId) && s.status === 'submitted')
 
@@ -32,6 +51,8 @@ export default function ProfessorDashboard() {
 
   const userById = useMemo(() => Object.fromEntries(users.map((u) => [u.id, u])), [users])
   const courseById = useMemo(() => Object.fromEntries(courses.map((c) => [c.id, c])), [courses])
+
+  if (loading) return <LoadingState />
 
   return (
     <div>
@@ -64,7 +85,7 @@ export default function ProfessorDashboard() {
                 <CourseCard
                   key={c.id}
                   course={c}
-                  enrolledCount={enrollments.filter((e) => e.courseId === c.id).length}
+                  enrolledCount={c.enrolledCount ?? enrollments.filter((e) => e.courseId === c.id).length}
                   onClick={() => navigate(`/professor/courses/${c.id}`)}
                   footer={<Button variant="soft" size="sm" className="w-full" onClick={(e) => { e.stopPropagation(); navigate(`/professor/courses/${c.id}`) }}>Open classroom <ArrowRight size={14} /></Button>}
                 />

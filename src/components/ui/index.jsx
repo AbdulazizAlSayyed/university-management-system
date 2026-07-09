@@ -322,15 +322,16 @@ export function ConfirmDialog({ open, onClose, onConfirm, title, message, confir
   )
 }
 
-// ------------------------------------------------------------------ FileDropzone (mock)
-export function FileDropzone({ onFile, hint = 'PDF, DOCX, PPTX, MP4 — up to 50 MB', fileName }) {
+// ------------------------------------------------------------------ FileDropzone
+export function FileDropzone({ onFile, hint = 'PDF, DOCX, PPTX, MP4 — up to 50 MB', fileName, fileObject }) {
+  const displayName = fileName || (fileObject?.name ?? '')
   return (
     <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-6 py-8 text-center transition hover:border-brand-400 hover:bg-brand-50/40">
       <span className="grid h-11 w-11 place-items-center rounded-full bg-brand-100 text-brand-600">
         <UploadCloud size={22} />
       </span>
-      {fileName ? (
-        <p className="text-sm font-semibold text-slate-700">{fileName}</p>
+      {displayName ? (
+        <p className="text-sm font-semibold text-slate-700">{displayName}</p>
       ) : (
         <>
           <p className="text-sm font-medium text-slate-600">
@@ -344,7 +345,7 @@ export function FileDropzone({ onFile, hint = 'PDF, DOCX, PPTX, MP4 — up to 50
         className="hidden"
         onChange={(e) => {
           const f = e.target.files?.[0]
-          if (f) onFile?.(f.name)
+          if (f) onFile?.(f)
         }}
       />
     </label>

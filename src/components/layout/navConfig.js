@@ -23,6 +23,7 @@ export const NAV = {
     { to: '/professor/grades', label: 'Final Grades', icon: GraduationCap },
     { to: '/professor/attendance', label: 'Attendance', icon: CalendarCheck },
     { to: '/professor/announcements', label: 'Announcements', icon: Megaphone },
+    { to: '/professor/notifications', label: 'Notifications', icon: Bell },
   ],
   student: [
     { to: '/student/dashboard', label: 'Dashboard', icon: LayoutDashboard },

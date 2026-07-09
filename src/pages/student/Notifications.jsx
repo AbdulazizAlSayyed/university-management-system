@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   Bell, CheckCheck, GraduationCap, ClipboardList, FileText, Megaphone, Info,
 } from 'lucide-react'
-import { useData } from '../../context/DataContext'
-import { useAuth } from '../../context/AuthContext'
+import useStudentData from '../../hooks/useStudentData'
 import { PageHeader, Card, Button, Tabs, EmptyState } from '../../components/ui'
 import { timeAgo, classNames } from '../../utils/helpers'
 
@@ -26,19 +25,16 @@ const TYPE_TONE = {
 }
 
 export default function StudentNotifications() {
-  const { notifications, markNotificationRead, markAllNotificationsRead } = useData()
-  const { currentUser } = useAuth()
+  const { notifications, markNotificationRead, markAllNotificationsRead } = useStudentData()
   const navigate = useNavigate()
   const [tab, setTab] = useState('all')
 
-  const mine = notifications
-    .filter((n) => n.userId === currentUser.id)
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+  const mine = [...notifications].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
   const unread = mine.filter((n) => !n.read)
   const list = tab === 'unread' ? unread : mine
 
   const open = (n) => {
-    markNotificationRead(n.id)
+    markNotificationRead(n._id || n.id)
     if (n.link) navigate(n.link)
   }
 
@@ -53,7 +49,7 @@ export default function StudentNotifications() {
         title="Notifications"
         subtitle="Alerts for grades, assignments, materials, and announcements."
         icon={Bell}
-        actions={unread.length > 0 && <Button variant="secondary" icon={CheckCheck} onClick={() => markAllNotificationsRead(currentUser.id)}>Mark all read</Button>}
+        actions={unread.length > 0 && <Button variant="secondary" icon={CheckCheck} onClick={markAllNotificationsRead}>Mark all read</Button>}
       />
 
       <Tabs tabs={tabs} active={tab} onChange={setTab} />
@@ -66,23 +62,31 @@ export default function StudentNotifications() {
             {list.map((n) => {
               const Icon = TYPE_ICON[n.type] || Info
               return (
-                <button
-                  key={n.id}
-                  onClick={() => open(n)}
-                  className={classNames('flex w-full items-start gap-4 px-5 py-4 text-left transition hover:bg-slate-50', !n.read && 'bg-brand-50/30')}
+                <div
+                  key={n._id || n.id}
+                  className={classNames('group flex items-start gap-4 px-5 py-4 transition hover:bg-slate-50', !n.read && 'bg-brand-50/30')}
                 >
-                  <span className={classNames('grid h-10 w-10 shrink-0 place-items-center rounded-xl', TYPE_TONE[n.type] || TYPE_TONE.system)}>
+                  <button onClick={() => open(n)} className={classNames('grid h-10 w-10 shrink-0 place-items-center rounded-xl', TYPE_TONE[n.type] || TYPE_TONE.system)}>
                     <Icon size={19} />
-                  </span>
-                  <div className="min-w-0 flex-1">
+                  </button>
+                  <button onClick={() => open(n)} className="min-w-0 flex-1 text-left">
                     <div className="flex items-center gap-2">
                       <p className="font-semibold text-slate-800">{n.title}</p>
                       {!n.read && <span className="h-2 w-2 rounded-full bg-brand-500" />}
                     </div>
                     <p className="mt-0.5 text-sm text-slate-500">{n.body}</p>
                     <p className="mt-1 text-xs text-slate-400">{timeAgo(n.createdAt)}</p>
-                  </div>
-                </button>
+                  </button>
+                  {!n.read && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); markNotificationRead(n._id || n.id) }}
+                      className="mt-2 shrink-0 rounded p-1 text-xs text-slate-400 opacity-0 transition hover:text-brand-600 group-hover:opacity-100"
+                      title="Mark as read"
+                    >
+                      <CheckCheck size={16} />
+                    </button>
+                  )}
+                </div>
               )
             })}
           </Card>

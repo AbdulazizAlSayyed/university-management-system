@@ -1,32 +1,47 @@
-import { useState, useMemo } from 'react'
-import { CalendarCheck, Plus, Save, Check, X } from 'lucide-react'
-import { useData } from '../../context/DataContext'
+import { useState, useMemo, useEffect } from 'react'
+import { CalendarCheck, Plus, Save, Check, X, Search } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import useProfessorData from '../../hooks/useProfessorData'
 import { useToast } from '../../context/ToastContext'
 import {
   PageHeader, Card, CardHeader, Button, Avatar, Badge, Select, Modal, FormField,
-  Input, EmptyState,
+  Input, EmptyState, LoadingState, SearchInput,
 } from '../../components/ui'
 import { fullName, formatDate, classNames } from '../../utils/helpers'
 
 export default function ProfessorAttendance() {
-  const { courses, users, enrollments, attendance, saveAttendance } = useData()
+  const api = useProfessorData()
+  const { loading } = api
   const { currentUser } = useAuth()
   const { toast } = useToast()
 
+  const courses = api.courses
+  const users = api.users
+  const enrollments = api.enrollments
+  const attendance = api.attendance
   const myCourses = courses.filter((c) => c.professorId === currentUser.id)
   const [courseId, setCourseId] = useState(myCourses[0]?.id || '')
+  const [studentSearch, setStudentSearch] = useState('')
   const [open, setOpen] = useState(false)
   const [date, setDate] = useState('')
   const [topic, setTopic] = useState('')
   const [present, setPresent] = useState({})
+
+  useEffect(() => {
+    if (myCourses.length > 0 && !courseId) setCourseId(myCourses[0].id)
+  }, [myCourses, courseId])
 
   const roster = useMemo(() => {
     const ids = new Set(enrollments.filter((e) => e.courseId === courseId).map((e) => e.studentId))
     return users.filter((u) => ids.has(u.id))
   }, [enrollments, users, courseId])
 
-  const records = attendance.filter((a) => a.courseId === courseId).sort((a, b) => new Date(b.date) - new Date(a.date))
+  const records = attendance
+    .filter((a) => a.courseId === courseId)
+    .sort((a, b) => new Date(b.sessionDate || b.date) - new Date(a.sessionDate || a.date))
+
+  const sq = studentSearch.toLowerCase()
+  const filteredSummary = summary.filter(({ student }) => !sq || fullName(student).toLowerCase().includes(sq))
 
   const startSession = () => {
     setDate(new Date().toISOString().slice(0, 10))
@@ -35,27 +50,37 @@ export default function ProfessorAttendance() {
     setOpen(true)
   }
 
-  const save = (e) => {
+  const save = async (e) => {
     e.preventDefault()
     if (!date) return toast('Pick a date.', 'error')
-    saveAttendance({ courseId, date, topic: topic || 'Lecture', records: roster.map((s) => ({ studentId: s.id, present: !!present[s.id] })) }, currentUser.id)
-    toast('Attendance recorded.', 'success')
-    setOpen(false)
+    try {
+      const records = roster.map((s) => ({ studentId: s.id, present: !!present[s.id] }))
+      await api.saveAttendance(courseId, { date, topic: topic || 'Lecture', records })
+      toast('Attendance recorded.', 'success')
+      setOpen(false)
+    } catch (err) {
+      toast(err?.response?.data?.message || 'Failed to save attendance', 'error')
+    }
   }
 
-  const rate = (rec) => Math.round((rec.records.filter((r) => r.present).length / rec.records.length) * 100)
+  const rate = (rec) => {
+    const r = rec.records || []
+    if (r.length === 0) return 0
+    return Math.round((r.filter((x) => x.present || x.status === 'present').length / r.length) * 100)
+  }
 
-  // Per-student attendance summary
   const summary = useMemo(() => {
     return roster.map((s) => {
       let present = 0, total = 0
       records.forEach((rec) => {
-        const r = rec.records.find((x) => x.studentId === s.id)
-        if (r) { total++; if (r.present) present++ }
+        const r = (rec.records || []).find((x) => x.studentId === s.id)
+        if (r) { total++; if (r.present || r.status === 'present') present++ }
       })
       return { student: s, present, total, pct: total ? Math.round((present / total) * 100) : null }
     })
   }, [roster, records])
+
+  if (loading) return <LoadingState />
 
   return (
     <div>
@@ -74,7 +99,6 @@ export default function ProfessorAttendance() {
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Sessions */}
         <Card>
           <CardHeader title="Sessions" subtitle={`${records.length} recorded`} icon={CalendarCheck} />
           {records.length === 0 ? (
@@ -82,10 +106,10 @@ export default function ProfessorAttendance() {
           ) : (
             <ul className="divide-y divide-slate-100">
               {records.map((rec) => (
-                <li key={rec.id} className="flex items-center justify-between px-5 py-3.5">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-700">{rec.topic}</p>
-                    <p className="text-xs text-slate-400">{formatDate(rec.date, { weekday: 'short', month: 'short', day: 'numeric' })} · {rec.records.length} students</p>
+                <li key={rec._id || rec.id} className="flex flex-wrap items-center justify-between gap-2 px-5 py-3.5">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-slate-700">{rec.topic || 'Lecture'}</p>
+                    <p className="text-xs text-slate-400">{formatDate(rec.sessionDate || rec.date, { weekday: 'short', month: 'short', day: 'numeric' })} · {rec.records?.length || 0} students</p>
                   </div>
                   <Badge tone={rate(rec) >= 80 ? 'emerald' : rate(rec) >= 60 ? 'amber' : 'red'}>{rate(rec)}%</Badge>
                 </li>
@@ -94,14 +118,22 @@ export default function ProfessorAttendance() {
           )}
         </Card>
 
-        {/* Per-student rates */}
         <Card>
           <CardHeader title="Student Attendance" subtitle="Overall rate this semester" icon={Check} />
           {summary.length === 0 ? (
             <EmptyState icon={Check} title="No students" message="Enroll students to track attendance." />
           ) : (
+            <div className="px-4 pt-2">
+              <SearchInput className="w-full" placeholder="Search student…" value={studentSearch} onChange={(e) => setStudentSearch(e.target.value)} />
+            </div>
+          )}
+          {summary.length === 0 ? (
+            <EmptyState icon={Check} title="No students" message="Enroll students to track attendance." />
+          ) : filteredSummary.length === 0 ? (
+            <EmptyState icon={Check} title="No students match" message="Try a different search term." />
+          ) : (
             <ul className="divide-y divide-slate-100">
-              {summary.map(({ student, present, total, pct }) => (
+              {filteredSummary.map(({ student, present, total, pct }) => (
                 <li key={student.id} className="flex items-center gap-3 px-5 py-3">
                   <Avatar user={student} size="xs" />
                   <div className="min-w-0 flex-1">

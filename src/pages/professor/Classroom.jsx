@@ -1,11 +1,12 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, FileText, Users, Megaphone, ClipboardList, CalendarCheck, GraduationCap,
   Plus, Trash2, Download, Link as LinkIcon, Clock, Save, Check, X, Pin,
 } from 'lucide-react'
-import { useData } from '../../context/DataContext'
 import { useAuth } from '../../context/AuthContext'
+import { professorApi, uploadApi } from '../../api'
+import useProfessorData from '../../hooks/useProfessorData'
 import { useToast } from '../../context/ToastContext'
 import {
   Card, CardHeader, Button, IconButton, Badge, StatusBadge, Avatar, Tabs, Modal,
@@ -18,17 +19,17 @@ import {
 export default function ProfessorClassroom() {
   const { courseId } = useParams()
   const navigate = useNavigate()
-  const data = useData()
+  const api = useProfessorData()
   const { currentUser } = useAuth()
-  const course = data.courses.find((c) => c.id === courseId)
+  const course = api.courses.find((c) => c.id === courseId)
   const [tab, setTab] = useState('materials')
 
   const roster = useMemo(() => {
-    const ids = new Set(data.enrollments.filter((e) => e.courseId === courseId).map((e) => e.studentId))
-    return data.users.filter((u) => ids.has(u.id))
-  }, [data.enrollments, data.users, courseId])
+    const ids = new Set(api.enrollments.filter((e) => e.courseId === courseId).map((e) => e.studentId))
+    return api.users.filter((u) => ids.has(u.id))
+  }, [api.enrollments, api.users, courseId])
 
-  const courseAssignments = data.assignments.filter((a) => a.courseId === courseId)
+  const courseAssignments = api.assignments.filter((a) => a.courseId === courseId)
 
   if (!course) {
     return (
@@ -82,42 +83,95 @@ export default function ProfessorClassroom() {
 
 /* ----------------------------------------------------------------- Materials */
 function MaterialsTab({ course }) {
-  const { materials, addMaterial, deleteMaterial } = useData()
-  const { currentUser } = useAuth()
   const { toast } = useToast()
   const [open, setOpen] = useState(false)
   const [del, setDel] = useState(null)
-  const [form, setForm] = useState({ week: 'Week 1', title: '', type: 'pdf', fileName: '', link: '' })
+  const [materials, setMaterials] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [form, setForm] = useState({ week: 'Week 1', title: '', type: 'pdf', file: null, link: '' })
 
-  const items = materials.filter((m) => m.courseId === course.id)
+  useEffect(() => {
+    professorApi.getMaterials(course.id)
+      .then((data) => { setMaterials(data.materials || []); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [course.id])
+
   const byWeek = useMemo(() => {
     const g = {}
-    items.forEach((m) => { (g[m.week] = g[m.week] || []).push(m) })
+    materials.forEach((m) => { (g[m.weekTopic || m.week] = g[m.weekTopic || m.week] || []).push(m) })
     return g
-  }, [items])
+  }, [materials])
 
-  const submit = (e) => {
+  const handleDownload = (m) => {
+    if (m.type === 'link' && m.link) {
+      window.open(m.link, '_blank', 'noopener')
+    } else if (m.fileUrl) {
+      window.open(uploadApi.getFileUrl(m.fileUrl), '_blank')
+    } else {
+      toast('Re-upload this material to enable download.', 'error')
+    }
+  }
+
+  const submit = async (e) => {
     e.preventDefault()
     if (!form.title) return toast('Enter a title.', 'error')
     if (form.type === 'link' && !form.link) return toast('Enter a link URL.', 'error')
-    if (form.type !== 'link' && !form.fileName) return toast('Attach a file.', 'error')
-    addMaterial({
-      courseId: course.id, week: form.week, title: form.title, type: form.type,
-      fileName: form.type === 'link' ? null : form.fileName,
-      link: form.type === 'link' ? form.link : null,
-      size: form.type === 'link' ? null : '2.0 MB',
-    }, currentUser.id)
-    toast('Material uploaded.', 'success')
-    setForm({ week: 'Week 1', title: '', type: 'pdf', fileName: '', link: '' })
-    setOpen(false)
+    if (form.type !== 'link' && !form.file) return toast('Attach a file.', 'error')
+
+    try {
+      let fileUrl = null
+      let fileName = null
+      let fileSize = null
+      if (form.type !== 'link' && form.file) {
+        const uploadRes = await uploadApi.uploadFile(form.file)
+        fileUrl = uploadRes.filename
+        fileName = form.file.name
+        fileSize = form.file.size ? `${(form.file.size / 1024 / 1024).toFixed(1)} MB` : null
+      }
+
+      await professorApi.addMaterial(course.id, {
+        week: form.week,
+        title: form.title,
+        type: form.type,
+        fileUrl,
+        fileName,
+        size: fileSize,
+        link: form.type === 'link' ? form.link : null,
+      })
+
+      const data = await professorApi.getMaterials(course.id)
+      setMaterials(data.materials || [])
+      toast('Material uploaded.', 'success')
+      setForm({ week: 'Week 1', title: '', type: 'pdf', file: null, link: '' })
+      setOpen(false)
+    } catch (err) {
+      console.error('Upload error:', err)
+      const msg = err?.response?.data?.message || err?.message || 'Upload failed'
+      toast(msg, 'error')
+    }
   }
+
+  const deleteMaterial = async () => {
+    if (!del) return
+    try {
+      await professorApi.deleteMaterial(course.id, del.id)
+      const data = await professorApi.getMaterials(course.id)
+      setMaterials(data.materials || [])
+      toast('Material deleted.', 'info')
+      setDel(null)
+    } catch (err) {
+      toast('Delete failed.', 'error')
+    }
+  }
+
+  if (loading) return <Card><EmptyState icon={FileText} title="Loading materials..." message="Please wait" /></Card>
 
   return (
     <div>
       <div className="mb-4 flex justify-end">
         <Button icon={Plus} onClick={() => setOpen(true)}>Upload material</Button>
       </div>
-      {items.length === 0 ? (
+      {materials.length === 0 ? (
         <Card><EmptyState icon={FileText} title="No materials yet" message="Upload lecture slides, PDFs, or links for your students." action={<Button icon={Plus} onClick={() => setOpen(true)}>Upload material</Button>} /></Card>
       ) : (
         <div className="space-y-5">
@@ -134,7 +188,7 @@ function MaterialsTab({ course }) {
                         <p className="truncate text-sm font-semibold text-slate-700">{m.title}</p>
                         <p className="truncate text-xs text-slate-400">{m.fileName || m.link} {m.size ? `· ${m.size}` : ''} · {formatDate(m.uploadedAt)}</p>
                       </div>
-                      <IconButton icon={m.type === 'link' ? LinkIcon : Download} title="Download" onClick={() => toast('Download started (demo).', 'info')} />
+                      <IconButton icon={m.type === 'link' ? LinkIcon : Download} title="Download" onClick={() => handleDownload(m)} />
                       <IconButton icon={Trash2} title="Delete" onClick={() => setDel(m)} className="hover:text-red-600" />
                     </li>
                   )
@@ -168,12 +222,12 @@ function MaterialsTab({ course }) {
           {form.type === 'link' ? (
             <FormField label="URL"><Input value={form.link} onChange={(e) => setForm((f) => ({ ...f, link: e.target.value }))} placeholder="https://…" /></FormField>
           ) : (
-            <FileDropzone fileName={form.fileName} onFile={(name) => setForm((f) => ({ ...f, fileName: name }))} />
+            <FileDropzone fileName={form.file?.name} fileObject={form.file} onFile={(f) => setForm((prev) => ({ ...prev, file: f }))} />
           )}
         </form>
       </Modal>
 
-      <ConfirmDialog open={!!del} onClose={() => setDel(null)} onConfirm={() => { deleteMaterial(del.id, currentUser.id); toast('Material deleted.', 'info') }}
+      <ConfirmDialog open={!!del} onClose={() => setDel(null)} onConfirm={deleteMaterial}
         title="Delete material?" message={del ? `Remove "${del.title}"?` : ''} confirmLabel="Delete" />
     </div>
   )
@@ -210,23 +264,54 @@ function RosterTab({ roster }) {
 }
 
 /* ----------------------------------------------------------------- Announcements */
-function AnnouncementsTab({ course, author }) {
-  const { announcements, addAnnouncement, deleteAnnouncement } = useData()
+function AnnouncementsTab({ course }) {
   const { toast } = useToast()
   const [open, setOpen] = useState(false)
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(true)
   const [form, setForm] = useState({ title: '', body: '' })
 
-  const items = announcements.filter((a) => a.scope === 'course' && a.courseId === course.id)
-    .sort((a, b) => (b.pinned - a.pinned) || new Date(b.createdAt) - new Date(a.createdAt))
+  useEffect(() => {
+    professorApi.getCourseAnnouncements(course.id)
+      .then((data) => {
+        const mapped = (data.announcements || data || []).map((a) => ({
+          ...a, id: a._id || a.id, body: a.message || a.body, scope: 'course', pinned: false,
+        }))
+        setItems(mapped.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)))
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [course.id])
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault()
     if (!form.title || !form.body) return toast('Enter a title and message.', 'error')
-    addAnnouncement({ scope: 'course', courseId: course.id, authorId: author.id, title: form.title, body: form.body }, author.id)
-    toast('Announcement posted to enrolled students.', 'success')
-    setForm({ title: '', body: '' })
-    setOpen(false)
+    try {
+      await professorApi.addAnnouncement(course.id, { title: form.title, body: form.body })
+      const data = await professorApi.getCourseAnnouncements(course.id)
+      const mapped = (data.announcements || data || []).map((a) => ({
+        ...a, id: a._id || a.id, body: a.message || a.body, scope: 'course', pinned: false,
+      }))
+      setItems(mapped.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)))
+      toast('Announcement posted.', 'success')
+      setForm({ title: '', body: '' })
+      setOpen(false)
+    } catch (err) {
+      toast(err?.response?.data?.message || 'Failed to post.', 'error')
+    }
   }
+
+  const doDelete = async (id) => {
+    try {
+      await professorApi.deleteAnnouncement(id)
+      setItems((prev) => prev.filter((a) => a.id !== id))
+      toast('Deleted.', 'info')
+    } catch (err) {
+      toast('Delete failed.', 'error')
+    }
+  }
+
+  if (loading) return <Card><EmptyState icon={Megaphone} title="Loading announcements..." message="Please wait" /></Card>
 
   return (
     <div>
@@ -237,13 +322,13 @@ function AnnouncementsTab({ course, author }) {
         <div className="space-y-4">
           {items.map((a) => (
             <Card key={a.id} className="p-5">
-              <div className="flex items-start justify-between gap-4">
-                <div>
+              <div className="flex-wrap flex items-start justify-between gap-4">
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2"><h3 className="font-bold text-slate-800">{a.title}</h3>{a.pinned && <Badge tone="amber"><Pin size={11} /> Pinned</Badge>}</div>
                   <p className="mt-1 text-sm text-slate-600">{a.body}</p>
                   <p className="mt-2 text-xs text-slate-400">{timeAgo(a.createdAt)}</p>
                 </div>
-                <IconButton icon={Trash2} title="Delete" onClick={() => { deleteAnnouncement(a.id, author.id); toast('Deleted.', 'info') }} className="hover:text-red-600" />
+                <IconButton icon={Trash2} title="Delete" onClick={() => doDelete(a.id)} className="hover:text-red-600" />
               </div>
             </Card>
           ))}
@@ -262,23 +347,66 @@ function AnnouncementsTab({ course, author }) {
 
 /* ----------------------------------------------------------------- Assignments */
 function AssignmentsTab({ course }) {
-  const { assignments, submissions, addAssignment, deleteAssignment } = useData()
-  const { currentUser } = useAuth()
   const { toast } = useToast()
   const [open, setOpen] = useState(false)
   const [del, setDel] = useState(null)
-  const [form, setForm] = useState({ title: '', description: '', dueDate: '', maxScore: 100, attachment: '' })
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [form, setForm] = useState({ title: '', description: '', dueDate: '', maxScore: 100, file: null })
 
-  const items = assignments.filter((a) => a.courseId === course.id)
+  useEffect(() => {
+    professorApi.getCourseAssignments(course.id)
+      .then((data) => {
+        const list = (data.assignments || data || []).map((a) => ({
+          ...a, id: a._id || a.id, dueDate: a.deadline || a.dueDate, maxScore: a.maxScore || 100,
+        }))
+        setItems(list)
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [course.id])
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault()
     if (!form.title || !form.dueDate) return toast('Enter a title and due date.', 'error')
-    addAssignment({ courseId: course.id, title: form.title, description: form.description, dueDate: form.dueDate, maxScore: Number(form.maxScore), attachment: form.attachment || null }, currentUser.id)
-    toast('Assignment created.', 'success')
-    setForm({ title: '', description: '', dueDate: '', maxScore: 100, attachment: '' })
-    setOpen(false)
+    try {
+      let attachment = null
+      if (form.file) {
+        const uploadRes = await uploadApi.uploadFile(form.file)
+        attachment = uploadRes.filename
+      }
+      await professorApi.addAssignment(course.id, {
+        title: form.title,
+        description: form.description,
+        dueDate: form.dueDate,
+        attachment,
+      })
+      const data = await professorApi.getCourseAssignments(course.id)
+      const list = (data.assignments || data || []).map((a) => ({
+        ...a, id: a._id || a.id, dueDate: a.deadline || a.dueDate, maxScore: a.maxScore || 100,
+      }))
+      setItems(list)
+      toast('Assignment created.', 'success')
+      setForm({ title: '', description: '', dueDate: '', maxScore: 100, file: null })
+      setOpen(false)
+    } catch (err) {
+      toast(err?.response?.data?.message || 'Failed to create.', 'error')
+    }
   }
+
+  const doDelete = async () => {
+    if (!del) return
+    try {
+      await professorApi.deleteAssignment(del.id)
+      setItems((prev) => prev.filter((a) => a.id !== del.id))
+      toast('Deleted.', 'info')
+      setDel(null)
+    } catch (err) {
+      toast('Delete failed.', 'error')
+    }
+  }
+
+  if (loading) return <Card><EmptyState icon={ClipboardList} title="Loading assignments..." message="Please wait" /></Card>
 
   return (
     <div>
@@ -287,27 +415,26 @@ function AssignmentsTab({ course }) {
         <Card><EmptyState icon={ClipboardList} title="No assignments" message="Create assignments with deadlines for this course." action={<Button icon={Plus} onClick={() => setOpen(true)}>Create assignment</Button>} /></Card>
       ) : (
         <div className="space-y-4">
-          {items.map((a) => {
-            const subs = submissions.filter((s) => s.assignmentId === a.id)
-            const graded = subs.filter((s) => s.status === 'graded').length
-            return (
-              <Card key={a.id} className="p-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <h3 className="font-bold text-slate-800">{a.title}</h3>
-                    <p className="mt-1 line-clamp-2 text-sm text-slate-500">{a.description}</p>
-                    <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+          {items.map((a) => (
+            <Card key={a.id} className="p-5">
+                  <div className="flex-wrap flex items-start justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-bold text-slate-800">{a.title}</h3>
+                  <p className="mt-1 line-clamp-2 text-sm text-slate-500">{a.description}</p>
+                  <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
                       <Badge tone="brand"><Clock size={11} /> Due {formatDate(a.dueDate)}</Badge>
                       <Badge tone="slate">{a.maxScore} pts</Badge>
-                      <Badge tone="sky">{subs.length} submitted</Badge>
-                      <Badge tone="emerald">{graded} graded</Badge>
+                      {a.attachedFileUrl && (
+                        <button onClick={() => window.open(uploadApi.getFileUrl(a.attachedFileUrl), '_blank')} className="flex items-center gap-1 rounded bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 hover:bg-slate-200">
+                          <Download size={11} /> Attachment
+                        </button>
+                      )}
                     </div>
-                  </div>
-                  <IconButton icon={Trash2} title="Delete" onClick={() => setDel(a)} className="hover:text-red-600" />
                 </div>
-              </Card>
-            )
-          })}
+                <IconButton icon={Trash2} title="Delete" onClick={() => setDel(a)} className="hover:text-red-600" />
+              </div>
+            </Card>
+          ))}
         </div>
       )}
       <Modal open={open} onClose={() => setOpen(false)} title={`New Assignment — ${course.code}`} size="lg"
@@ -319,10 +446,12 @@ function AssignmentsTab({ course }) {
             <FormField label="Due date" required><Input type="date" value={form.dueDate} onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))} /></FormField>
             <FormField label="Max score"><Input type="number" value={form.maxScore} onChange={(e) => setForm((f) => ({ ...f, maxScore: e.target.value }))} /></FormField>
           </div>
-          <FormField label="Attachment (optional)"><Input value={form.attachment} onChange={(e) => setForm((f) => ({ ...f, attachment: e.target.value }))} placeholder="brief.pdf" /></FormField>
+          <FormField label="Attachment (optional)">
+            <FileDropzone fileName={form.file?.name} fileObject={form.file} onFile={(f) => setForm((prev) => ({ ...prev, file: f }))} hint="PDF, DOCX, ZIP — up to 50 MB" />
+          </FormField>
         </form>
       </Modal>
-      <ConfirmDialog open={!!del} onClose={() => setDel(null)} onConfirm={() => { deleteAssignment(del.id, currentUser.id); toast('Assignment deleted.', 'info') }}
+      <ConfirmDialog open={!!del} onClose={() => setDel(null)} onConfirm={doDelete}
         title="Delete assignment?" message={del ? `Remove "${del.title}" and its submissions?` : ''} confirmLabel="Delete" />
     </div>
   )
@@ -330,15 +459,29 @@ function AssignmentsTab({ course }) {
 
 /* ----------------------------------------------------------------- Attendance */
 function AttendanceTab({ course, roster }) {
-  const { attendance, saveAttendance } = useData()
-  const { currentUser } = useAuth()
   const { toast } = useToast()
   const [open, setOpen] = useState(false)
+  const [records, setRecords] = useState([])
+  const [loading, setLoading] = useState(true)
   const [date, setDate] = useState('')
   const [topic, setTopic] = useState('')
   const [present, setPresent] = useState({})
 
-  const records = attendance.filter((a) => a.courseId === course.id).sort((a, b) => new Date(b.date) - new Date(a.date))
+  useEffect(() => {
+    professorApi.getCourseAttendance(course.id)
+      .then((data) => {
+        const list = (data.records || data || []).map((r) => ({
+          ...r, id: r._id || r.id, date: r.sessionDate || r.date,
+          records: (r.records || []).map((rr) => ({
+            studentId: rr.studentId?.toString ? rr.studentId.toString() : rr.studentId,
+            present: rr.status === 'present',
+          })),
+        }))
+        setRecords(list.sort((a, b) => new Date(b.date) - new Date(a.date)))
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [course.id])
 
   const startSession = () => {
     setDate(new Date().toISOString().slice(0, 10))
@@ -347,18 +490,37 @@ function AttendanceTab({ course, roster }) {
     setOpen(true)
   }
 
-  const save = (e) => {
+  const save = async (e) => {
     e.preventDefault()
     if (!date) return toast('Pick a date.', 'error')
-    saveAttendance({ courseId: course.id, date, topic: topic || 'Lecture', records: roster.map((s) => ({ studentId: s.id, present: !!present[s.id] })) }, currentUser.id)
-    toast('Attendance recorded.', 'success')
-    setOpen(false)
+    try {
+      await professorApi.saveAttendance(course.id, {
+        date,
+        records: roster.map((s) => ({ studentId: s.id, present: !!present[s.id] })),
+      })
+      const data = await professorApi.getCourseAttendance(course.id)
+      const list = (data.records || data || []).map((r) => ({
+        ...r, id: r._id || r.id, date: r.sessionDate || r.date,
+        records: (r.records || []).map((rr) => ({
+          studentId: rr.studentId?.toString ? rr.studentId.toString() : rr.studentId,
+          present: rr.status === 'present',
+        })),
+      }))
+      setRecords(list.sort((a, b) => new Date(b.date) - new Date(a.date)))
+      toast('Attendance recorded.', 'success')
+      setOpen(false)
+    } catch (err) {
+      toast(err?.response?.data?.message || 'Failed to save.', 'error')
+    }
   }
 
   const rate = (rec) => {
+    if (!rec.records?.length) return 0
     const p = rec.records.filter((r) => r.present).length
     return Math.round((p / rec.records.length) * 100)
   }
+
+  if (loading) return <Card><EmptyState icon={CalendarCheck} title="Loading attendance..." message="Please wait" /></Card>
 
   return (
     <div>
@@ -371,7 +533,7 @@ function AttendanceTab({ course, roster }) {
             <Card key={rec.id} className="p-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-semibold text-slate-800">{rec.topic}</p>
+                  <p className="font-semibold text-slate-800">{rec.topic || 'Lecture'}</p>
                   <p className="text-xs text-slate-400">{formatDate(rec.date, { weekday: 'long', month: 'short', day: 'numeric' })}</p>
                 </div>
                 <Badge tone={rate(rec) >= 80 ? 'emerald' : rate(rec) >= 60 ? 'amber' : 'red'}>{rate(rec)}% present</Badge>
@@ -427,23 +589,45 @@ function AttendanceTab({ course, roster }) {
 
 /* ----------------------------------------------------------------- Grades */
 function GradesTab({ course, roster }) {
-  const { grades, setFinalGrade } = useData()
-  const { currentUser } = useAuth()
   const { toast } = useToast()
   const [scores, setScores] = useState({})
+  const [gradeMap, setGradeMap] = useState({})
+  const [loading, setLoading] = useState(true)
 
-  const gradeFor = (sid) => grades.find((g) => g.studentId === sid && g.courseId === course.id)
+  useEffect(() => {
+    professorApi.getCourseGrades(course.id)
+      .then((data) => {
+        const map = {}
+        ;(data.roster || []).forEach((s) => {
+          if (s.grade) map[s.id] = s.grade
+        })
+        setGradeMap(map)
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [course.id])
 
-  const save = (sid) => {
+  const save = async (sid) => {
     const val = scores[sid]
     if (val === undefined || val === '') return toast('Enter a score.', 'error')
     const num = Number(val)
     if (isNaN(num) || num < 0 || num > 100) return toast('Score must be 0–100.', 'error')
-    setFinalGrade(sid, course.id, num, currentUser.id)
-    toast('Final grade saved.', 'success')
-    setScores((s) => ({ ...s, [sid]: '' }))
+    try {
+      await professorApi.setFinalGrade(course.id, sid, num)
+      const data = await professorApi.getCourseGrades(course.id)
+      const map = {}
+      ;(data.roster || []).forEach((s) => {
+        if (s.grade) map[s.id] = s.grade
+      })
+      setGradeMap(map)
+      toast('Final grade saved.', 'success')
+      setScores((s) => ({ ...s, [sid]: '' }))
+    } catch (err) {
+      toast(err?.response?.data?.message || 'Failed to save.', 'error')
+    }
   }
 
+  if (loading) return <Card><EmptyState icon={GraduationCap} title="Loading grades..." message="Please wait" /></Card>
   if (roster.length === 0) return <Card><EmptyState icon={GraduationCap} title="No students" message="Enroll students to enter grades." /></Card>
 
   return (
@@ -459,7 +643,7 @@ function GradesTab({ course, roster }) {
           </thead>
           <tbody className="divide-y divide-slate-100">
             {roster.map((s) => {
-              const g = gradeFor(s.id)
+              const g = gradeMap[s.id]
               const preview = scores[s.id] !== undefined && scores[s.id] !== '' ? scoreToLetter(Number(scores[s.id])) : null
               return (
                 <tr key={s.id} className="hover:bg-slate-50/60">

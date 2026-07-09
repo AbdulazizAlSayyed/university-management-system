@@ -19,6 +19,15 @@ const examSchema = new Schema({
     type: String,
     required: [true, 'Room is required']
   },
+  title: {
+    type: String,
+    trim: true
+  },
+  type: {
+    type: String,
+    enum: ['Midterm', 'Final', 'Quiz', 'Other'],
+    default: 'Other'
+  },
   createdByAdminId: {
     type: Schema.Types.ObjectId,
     ref: 'User'

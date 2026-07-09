@@ -1,28 +1,32 @@
 import { useState, useMemo } from 'react'
-import { ClipboardList, Clock, Upload, CheckCircle2 } from 'lucide-react'
-import { useData } from '../../context/DataContext'
+import { ClipboardList, Clock, Upload, Download, CheckCircle2 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
+import { uploadApi } from '../../api'
+import useStudentData from '../../hooks/useStudentData'
 import {
-  PageHeader, Card, Button, Badge, StatusBadge, Tabs, Modal, FileDropzone, EmptyState,
+  PageHeader, Card, Button, Badge, StatusBadge, Tabs, Modal, FileDropzone, EmptyState, LoadingState,
 } from '../../components/ui'
 import { formatDate, daysUntil } from '../../utils/helpers'
 
 export default function StudentAssignments() {
-  const { courses, enrollments, assignments, submissions, submitAssignment } = useData()
+  const { loading, courses, enrollments, assignments, submitAssignment } = useStudentData()
   const { currentUser } = useAuth()
   const { toast } = useToast()
   const [tab, setTab] = useState('todo')
   const [submitFor, setSubmitFor] = useState(null)
-  const [fileName, setFileName] = useState('')
+  const [file, setFile] = useState(null)
 
-  const myCourseIds = new Set(enrollments.filter((e) => e.studentId === currentUser.id).map((e) => e.courseId))
+  const myCourseIds = new Set(enrollments.filter((e) => e.studentId === currentUser.id && e.status === 'enrolled').map((e) => e.courseId))
   const courseById = useMemo(() => Object.fromEntries(courses.map((c) => [c.id, c])), [courses])
-  const mySub = (aid) => submissions.find((s) => s.assignmentId === aid && s.studentId === currentUser.id)
+  const mySub = (aid) => {
+    const asg = assignments.find((a) => (a.id || a._id) === aid)
+    return asg ? asg.sub : null
+  }
 
   const mine = assignments
     .filter((a) => myCourseIds.has(a.courseId))
-    .map((a) => ({ ...a, sub: mySub(a.id) }))
+    .map((a) => ({ ...a, sub: mySub(a.id || a._id) }))
     .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
 
   const todo = mine.filter((a) => !a.sub && daysUntil(a.dueDate) >= 0)
@@ -30,12 +34,16 @@ export default function StudentAssignments() {
   const graded = mine.filter((a) => a.sub && a.sub.status === 'graded')
   const list = tab === 'todo' ? todo : tab === 'submitted' ? submitted : tab === 'graded' ? graded : mine
 
-  const doSubmit = () => {
-    if (!fileName) return toast('Attach a file to submit.', 'error')
-    submitAssignment(submitFor.id, currentUser.id, fileName)
-    toast('Assignment submitted!', 'success')
-    setSubmitFor(null)
-    setFileName('')
+  const doSubmit = async () => {
+    if (!file) return toast('Attach a file to submit.', 'error')
+    try {
+      await submitAssignment(submitFor.id || submitFor._id, file)
+      toast('Assignment submitted!', 'success')
+      setSubmitFor(null)
+      setFile(null)
+    } catch (err) {
+      toast('Failed to submit', 'error')
+    }
   }
 
   const tabs = [
@@ -44,6 +52,8 @@ export default function StudentAssignments() {
     { value: 'graded', label: 'Graded', icon: CheckCircle2, count: graded.length },
     { value: 'all', label: 'All', icon: ClipboardList, count: mine.length },
   ]
+
+  if (loading) return <LoadingState />
 
   return (
     <div>
@@ -69,6 +79,11 @@ export default function StudentAssignments() {
                     <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
                       <Badge tone={closed ? 'slate' : d <= 3 ? 'red' : 'amber'}><Clock size={11} /> {closed ? 'Closed' : d === 0 ? 'Due today' : `Due ${formatDate(a.dueDate)} · ${d}d`}</Badge>
                       <Badge tone="slate">{a.maxScore} pts</Badge>
+                      {a.attachedFileUrl && (
+                        <button onClick={() => window.open(uploadApi.getFileUrl(a.attachedFileUrl), '_blank')} className="flex items-center gap-1 rounded bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 hover:bg-slate-200">
+                          <Download size={11} /> Attachment
+                        </button>
+                      )}
                       {a.sub && <StatusBadge status={a.sub.status} />}
                     </div>
                     {a.sub?.status === 'graded' && (
@@ -107,7 +122,7 @@ export default function StudentAssignments() {
               <p className="flex items-center gap-1.5"><Clock size={14} className="text-slate-400" /> Due {formatDate(submitFor.dueDate)} · {submitFor.maxScore} points</p>
             </div>
           )}
-          <FileDropzone fileName={fileName} onFile={setFileName} hint="PDF, DOCX, ZIP — up to 50 MB" />
+          <FileDropzone fileName={file?.name} fileObject={file} onFile={setFile} hint="PDF, DOCX, ZIP — up to 50 MB" />
         </div>
       </Modal>
     </div>

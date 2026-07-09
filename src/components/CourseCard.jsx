@@ -10,9 +10,9 @@ export default function CourseCard({ course, professorName, enrolledCount, foote
     >
       <div className={classNames('h-2 w-full', course.color || 'bg-brand-500')} />
       <div className="p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
               <Badge tone="brand">{course.code}</Badge>
               <span className="text-xs font-medium text-slate-400">{course.credits} credits</span>
             </div>
@@ -23,21 +23,21 @@ export default function CourseCard({ course, professorName, enrolledCount, foote
 
         <p className="mt-2 line-clamp-2 text-sm text-slate-500">{course.description}</p>
 
-        <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-slate-500">
+        <div className="mt-4 grid grid-cols-2 gap-x-2 gap-y-1.5 text-xs text-slate-500">
           {professorName && (
-            <span className="flex items-center gap-1.5">
-              <Award size={14} className="text-slate-400" /> {professorName}
+            <span className="flex items-center gap-1.5 min-w-0">
+              <Award size={14} className="shrink-0 text-slate-400" /> <span className="truncate">{professorName}</span>
             </span>
           )}
-          <span className="flex items-center gap-1.5">
-            <Clock size={14} className="text-slate-400" /> {course.schedule}
+          <span className="flex items-center gap-1.5 min-w-0">
+            <Clock size={14} className="shrink-0 text-slate-400" /> <span className="truncate">{course.schedule}</span>
           </span>
-          <span className="flex items-center gap-1.5">
-            <MapPin size={14} className="text-slate-400" /> {course.room}
+          <span className="flex items-center gap-1.5 min-w-0">
+            <MapPin size={14} className="shrink-0 text-slate-400" /> <span className="truncate">{course.room}</span>
           </span>
           {enrolledCount != null && (
-            <span className="flex items-center gap-1.5">
-              <Users size={14} className="text-slate-400" /> {enrolledCount}/{course.capacity} enrolled
+            <span className="flex items-center gap-1.5 min-w-0">
+              <Users size={14} className="shrink-0 text-slate-400" /> <span className="truncate">{enrolledCount}/{course.capacity} enrolled</span>
             </span>
           )}
         </div>

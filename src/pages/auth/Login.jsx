@@ -5,9 +5,14 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
-import { DEMO_CREDENTIALS } from '../../data/mockData'
 import { Button, FormField, Input } from '../../components/ui'
 import { classNames } from '../../utils/helpers'
+
+const DEMO_CREDENTIALS = [
+  { role: 'admin', email: 'admin@university.edu', password: 'Admin@123', label: 'Administrator' },
+  { role: 'professor', email: 'professor@university.edu', password: 'Prof@123', label: 'Professor' },
+  { role: 'student', email: 'student@university.edu', password: 'Student@123', label: 'Student' },
+]
 
 const ROLE_STYLES = {
   admin: 'border-brand-200 bg-brand-50 text-brand-700',

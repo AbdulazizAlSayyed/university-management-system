@@ -1,8 +1,8 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Menu, Bell, ChevronDown, User, LogOut, CheckCheck } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
-import { useData } from '../../context/DataContext'
+import { studentApi, professorApi } from '../../api'
 import { Avatar } from '../ui'
 import { ROLE_LABEL, PROFILE_LINK } from './navConfig'
 import { fullName, timeAgo, classNames } from '../../utils/helpers'
@@ -17,20 +17,49 @@ function useOutsideClick(ref, onClose) {
 
 export default function Topbar({ onMenu }) {
   const { currentUser, logout } = useAuth()
-  const { notifications, markNotificationRead, markAllNotificationsRead } = useData()
   const navigate = useNavigate()
   const [notifOpen, setNotifOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [notifications, setNotifications] = useState([])
   const notifRef = useRef(null)
   const menuRef = useRef(null)
   useOutsideClick(notifRef, () => setNotifOpen(false))
   useOutsideClick(menuRef, () => setMenuOpen(false))
 
-  const myNotifs = notifications.filter((n) => n.userId === currentUser.id)
+  const api = currentUser?.role === 'professor' ? professorApi : studentApi
+
+  const loadNotifs = useCallback(async () => {
+    try {
+      const res = await api.getNotifications()
+      setNotifications(res.notifications || [])
+    } catch { /* ignore */ }
+  }, [api])
+
+  useEffect(() => {
+    loadNotifs()
+    const interval = setInterval(loadNotifs, 30000)
+    return () => clearInterval(interval)
+  }, [loadNotifs])
+
+  const myNotifs = notifications
   const unread = myNotifs.filter((n) => !n.read).length
 
+  const markNotificationRead = useCallback(async (id) => {
+    try {
+      await api.markNotificationRead(id)
+      setNotifications((prev) => prev.map((n) => ((n._id || n.id) === id ? { ...n, read: true } : n)))
+    } catch { /* ignore */ }
+  }, [api])
+
+  const markAllNotificationsRead = useCallback(async () => {
+    try {
+      await api.markAllNotificationsRead()
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+    } catch { /* ignore */ }
+  }, [api])
+
   const openNotif = (n) => {
-    markNotificationRead(n.id)
+    markNotificationRead(n._id || n.id)
     setNotifOpen(false)
     if (n.link) navigate(n.link)
   }
@@ -67,7 +96,7 @@ export default function Topbar({ onMenu }) {
                 <p className="font-semibold text-slate-800">Notifications</p>
                 {unread > 0 && (
                   <button
-                    onClick={() => markAllNotificationsRead(currentUser.id)}
+                    onClick={markAllNotificationsRead}
                     className="flex items-center gap-1 text-xs font-semibold text-brand-600 hover:text-brand-700"
                   >
                     <CheckCheck size={14} /> Mark all read
@@ -79,21 +108,32 @@ export default function Topbar({ onMenu }) {
                   <p className="px-4 py-10 text-center text-sm text-slate-400">You're all caught up.</p>
                 )}
                 {myNotifs.map((n) => (
-                  <button
-                    key={n.id}
-                    onClick={() => openNotif(n)}
+                  <div
+                    key={n._id || n.id}
                     className={classNames(
-                      'flex w-full items-start gap-3 border-b border-slate-50 px-4 py-3 text-left transition hover:bg-slate-50',
+                      'group flex items-start gap-3 border-b border-slate-50 px-4 py-3 transition hover:bg-slate-50',
                       !n.read && 'bg-brand-50/40'
                     )}
                   >
-                    <span className={classNames('mt-1.5 h-2 w-2 shrink-0 rounded-full', n.read ? 'bg-slate-300' : 'bg-brand-500')} />
-                    <span className="min-w-0 flex-1">
+                    <button
+                      onClick={() => openNotif(n)}
+                      className={classNames('mt-1.5 h-2 w-2 shrink-0 rounded-full', n.read ? 'bg-slate-300' : 'bg-brand-500')}
+                    />
+                    <button onClick={() => openNotif(n)} className="min-w-0 flex-1 text-left">
                       <span className="block text-sm font-semibold text-slate-700">{n.title}</span>
                       <span className="block truncate text-xs text-slate-500">{n.body}</span>
                       <span className="mt-0.5 block text-[11px] text-slate-400">{timeAgo(n.createdAt)}</span>
-                    </span>
-                  </button>
+                    </button>
+                    {!n.read && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); markNotificationRead(n._id || n.id) }}
+                        className="mt-1 shrink-0 rounded p-1 text-xs text-slate-400 opacity-0 transition hover:text-brand-600 group-hover:opacity-100"
+                        title="Mark as read"
+                      >
+                        <CheckCheck size={14} />
+                      </button>
+                    )}
+                  </div>
                 ))}
               </div>
             </div>

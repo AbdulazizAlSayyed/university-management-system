@@ -3,10 +3,27 @@ const crypto = require('crypto');
 const User = require('../../models/User');
 const { sendCredentialsEmail } = require('../../utils/mailer');
 
-// Generates a random, readable temporary password (not sent as-is forever —
-// user is expected to change it after first login).
+const UNIVERSITY_DOMAIN = process.env.UNIVERSITY_DOMAIN || 'university.edu';
+
 function generateTempPassword() {
-  return crypto.randomBytes(6).toString('hex'); // 12-character password
+  return crypto.randomBytes(6).toString('hex');
+}
+
+function generateUniversityEmail(firstName, lastName, suffix) {
+  const base = `${firstName.toLowerCase()}.${lastName.toLowerCase()}`;
+  const s = suffix ? `${base}${suffix}` : base;
+  return `${s}@${UNIVERSITY_DOMAIN}`;
+}
+
+async function findAvailableEmail(firstName, lastName) {
+  let suffix = 0;
+  let email;
+  do {
+    email = generateUniversityEmail(firstName, lastName, suffix > 0 ? suffix : null);
+    const exists = await User.findOne({ email });
+    if (!exists) return email;
+    suffix++;
+  } while (true);
 }
 
 async function listUsers(statusFilter) {
@@ -14,8 +31,6 @@ async function listUsers(statusFilter) {
   return User.find(query).sort({ createdAt: -1 });
 }
 
-// Turns a 'requested' user (or a brand-new one) into an active account
-// with real university credentials, and emails those credentials.
 async function provisionUser({ userId, universityEmail, extraFields = {} }) {
   const user = userId
     ? await User.findById(userId)
@@ -25,7 +40,11 @@ async function provisionUser({ userId, universityEmail, extraFields = {} }) {
     throw { status: 404, message: 'Request not found' };
   }
 
-  const emailTaken = await User.findOne({ email: universityEmail, _id: { $ne: userId } });
+  const target = user || new User({ ...extraFields });
+
+  const email = universityEmail || await findAvailableEmail(target.firstName, target.lastName);
+
+  const emailTaken = await User.findOne({ email, _id: { $ne: userId } });
   if (emailTaken) {
     throw { status: 400, message: 'That university email is already in use' };
   }
@@ -33,9 +52,8 @@ async function provisionUser({ userId, universityEmail, extraFields = {} }) {
   const tempPassword = generateTempPassword();
   const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
-  const target = user || new User({ ...extraFields });
   Object.assign(target, extraFields, {
-    email: universityEmail,
+    email,
     password: hashedPassword,
     status: 'active'
   });
@@ -45,7 +63,7 @@ async function provisionUser({ userId, universityEmail, extraFields = {} }) {
   await sendCredentialsEmail({
     to: target.personalEmail,
     firstName: target.firstName,
-    universityEmail,
+    universityEmail: email,
     password: tempPassword,
     role: target.role
   });

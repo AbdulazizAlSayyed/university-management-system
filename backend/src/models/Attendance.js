@@ -24,6 +24,10 @@ const attendanceSchema = new Schema({
     type: Date,
     required: [true, 'Session date is required']
   },
+  topic: {
+    type: String,
+    default: 'Lecture'
+  },
   records: [attendanceRecordSchema]
 });
 

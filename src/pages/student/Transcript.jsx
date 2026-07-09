@@ -1,17 +1,17 @@
 import { useMemo } from 'react'
 import { FileText, Download, GraduationCap } from 'lucide-react'
-import { useData } from '../../context/DataContext'
 import { useAuth } from '../../context/AuthContext'
-import { PageHeader, Card, Button } from '../../components/ui'
+import useStudentData from '../../hooks/useStudentData'
+import { PageHeader, Card, Button, LoadingState } from '../../components/ui'
 import { fullName, calculateGPA, gradeColor, classNames } from '../../utils/helpers'
 
 export default function StudentTranscript() {
-  const { courses, users, enrollments, grades } = useData()
+  const { loading, courses, users, enrollments, grades } = useStudentData()
   const { currentUser } = useAuth()
 
   const courseById = useMemo(() => Object.fromEntries(courses.map((c) => [c.id, c])), [courses])
   const userById = useMemo(() => Object.fromEntries(users.map((u) => [u.id, u])), [users])
-  const myCourseIds = new Set(enrollments.filter((e) => e.studentId === currentUser.id).map((e) => e.courseId))
+  const myCourseIds = new Set(enrollments.filter((e) => e.studentId === currentUser.id && e.status === 'enrolled').map((e) => e.courseId))
   const myGrades = grades.filter((g) => g.studentId === currentUser.id)
   const { gpa, credits } = calculateGPA(myGrades, courseById)
 
@@ -24,6 +24,8 @@ export default function StudentTranscript() {
 
   const totalCredits = rows.reduce((a, r) => a + (r.course.credits || 0), 0)
 
+  if (loading) return <LoadingState />
+
   return (
     <div>
       <PageHeader
@@ -35,9 +37,9 @@ export default function StudentTranscript() {
 
       <Card id="transcript" className="mx-auto max-w-3xl p-8 sm:p-10">
         {/* Letterhead */}
-        <div className="flex items-center justify-between border-b-2 border-brand-600 pb-5">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b-2 border-brand-600 pb-5">
           <div className="flex items-center gap-3">
-            <span className="grid h-12 w-12 place-items-center rounded-xl bg-brand-600 text-white">
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-brand-600 text-white">
               <GraduationCap size={26} />
             </span>
             <div>
@@ -52,7 +54,7 @@ export default function StudentTranscript() {
         </div>
 
         {/* Student info */}
-        <div className="mt-6 grid grid-cols-2 gap-4 text-sm">
+        <div className="mt-6 grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Student</p>
             <p className="font-semibold text-slate-800">{fullName(currentUser)}</p>
@@ -72,7 +74,8 @@ export default function StudentTranscript() {
         </div>
 
         {/* Grades table */}
-        <table className="mt-6 w-full text-sm">
+        <div className="mt-6 overflow-x-auto">
+        <table className="w-full text-sm">
           <thead>
             <tr className="border-y border-slate-200 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
               <th className="py-2.5">Code</th>
@@ -98,10 +101,11 @@ export default function StudentTranscript() {
             ))}
           </tbody>
         </table>
+        </div>
 
         {/* Summary */}
-        <div className="mt-6 flex items-center justify-between rounded-xl bg-slate-50 px-5 py-4">
-          <div className="flex gap-8 text-sm">
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-xl bg-slate-50 px-5 py-4">
+          <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Total Credits</p>
               <p className="text-lg font-bold text-slate-800">{totalCredits}</p>

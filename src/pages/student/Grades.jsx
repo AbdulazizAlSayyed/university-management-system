@@ -1,25 +1,35 @@
-import { useMemo } from 'react'
-import { GraduationCap, TrendingUp, Award, FileText } from 'lucide-react'
-import { useData } from '../../context/DataContext'
+import { useState, useMemo } from 'react'
+import { GraduationCap, TrendingUp, Award, FileText, Search } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
-import { PageHeader, Card, CardHeader, StatCard, Badge, StatusBadge, EmptyState } from '../../components/ui'
+import useStudentData from '../../hooks/useStudentData'
+import { PageHeader, Card, CardHeader, StatCard, Badge, StatusBadge, EmptyState, LoadingState, SearchInput } from '../../components/ui'
 import { calculateGPA, gradeColor, formatDate, classNames } from '../../utils/helpers'
 
 export default function StudentGrades() {
-  const { courses, enrollments, assignments, submissions, grades } = useData()
+  const { loading, courses, enrollments, assignments, grades } = useStudentData()
   const { currentUser } = useAuth()
+  const [search, setSearch] = useState('')
 
   const courseById = useMemo(() => Object.fromEntries(courses.map((c) => [c.id, c])), [courses])
-  const myCourseIds = new Set(enrollments.filter((e) => e.studentId === currentUser.id).map((e) => e.courseId))
+  const myCourseIds = new Set(enrollments.filter((e) => e.studentId === currentUser.id && e.status === 'enrolled').map((e) => e.courseId))
   const myCourses = courses.filter((c) => myCourseIds.has(c.id))
+  const q = search.toLowerCase()
+  const filteredCourses = myCourses.filter((c) => !q || c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q))
   const myGrades = grades.filter((g) => g.studentId === currentUser.id)
   const { gpa, credits } = calculateGPA(myGrades, courseById)
   const finalized = myGrades.filter((g) => g.status === 'final').length
 
-  const mySubs = submissions.filter((s) => s.studentId === currentUser.id)
-  const subByAsg = useMemo(() => Object.fromEntries(mySubs.map((s) => [s.assignmentId, s])), [mySubs])
+  const subByAsg = useMemo(() => {
+    const map = {}
+    assignments.forEach((a) => {
+      if (a.sub) map[a.id || a._id] = { ...a.sub, assignmentId: a.id || a._id }
+    })
+    return map
+  }, [assignments])
 
   const gradeFor = (cid) => myGrades.find((g) => g.courseId === cid)
+
+  if (loading) return <LoadingState />
 
   return (
     <div>
@@ -31,11 +41,15 @@ export default function StudentGrades() {
         <StatCard icon={FileText} label="Enrolled Courses" value={myCourses.length} sub="This semester" tone="violet" />
       </div>
 
-      {myCourses.length === 0 ? (
-        <Card className="mt-6"><EmptyState icon={GraduationCap} title="No grades yet" message="Enroll in courses to start tracking your grades." /></Card>
+      <Card className="mt-5 p-4">
+        <SearchInput className="w-full sm:w-96" placeholder="Search course name or code…" value={search} onChange={(e) => setSearch(e.target.value)} />
+      </Card>
+
+      {filteredCourses.length === 0 ? (
+        <Card className="mt-6"><EmptyState icon={GraduationCap} title={search ? 'No courses match' : 'No grades yet'} message={search ? 'Try a different search term.' : 'Enroll in courses to start tracking your grades.'} /></Card>
       ) : (
         <div className="mt-6 space-y-5">
-          {myCourses.map((c) => {
+          {filteredCourses.map((c) => {
             const g = gradeFor(c.id)
             const courseAsgs = assignments.filter((a) => a.courseId === c.id)
             return (

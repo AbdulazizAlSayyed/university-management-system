@@ -1,25 +1,6 @@
 const mongoose = require('mongoose');
 const { Schema } = mongoose;
 
-const materialSchema = new Schema({
-  title: {
-    type: String,
-    required: [true, 'Material title is required']
-  },
-  weekTopic: {
-    type: String,
-    required: [true, 'Week or topic is required']
-  },
-  fileUrl: {
-    type: String,
-    required: [true, 'File URL is required']
-  },
-  uploadedAt: {
-    type: Date,
-    default: Date.now
-  }
-}, { _id: true });
-
 const courseSchema = new Schema({
   title: {
     type: String,
@@ -51,9 +32,43 @@ const courseSchema = new Schema({
     ref: 'User',
     required: [true, 'Assigned professor is required']
   },
-  materials: [materialSchema]
+  name: {
+    type: String,
+    trim: true
+  },
+  credits: {
+    type: Number,
+    default: 3,
+    min: 0
+  },
+  schedule: {
+    type: String,
+    trim: true
+  },
+  room: {
+    type: String,
+    trim: true
+  },
+  color: {
+    type: String,
+    default: 'bg-brand-500'
+  }
 }, {
-  timestamps: { createdAt: true, updatedAt: false }
+  timestamps: { createdAt: true, updatedAt: false },
+  toJSON: {
+    transform(doc, ret) {
+      if (!ret.name) ret.name = ret.title;
+      if (!ret.title) ret.title = ret.name;
+      return ret;
+    }
+  },
+  toObject: {
+    transform(doc, ret) {
+      if (!ret.name) ret.name = ret.title;
+      if (!ret.title) ret.title = ret.name;
+      return ret;
+    }
+  }
 });
 
 module.exports = mongoose.model('Course', courseSchema);

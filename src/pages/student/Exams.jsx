@@ -1,20 +1,23 @@
-import { useMemo } from 'react'
-import { CalendarClock, MapPin, Clock, CalendarDays } from 'lucide-react'
-import { useData } from '../../context/DataContext'
+import { useState, useMemo } from 'react'
+import { CalendarClock, MapPin, Clock, CalendarDays, Search } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
-import { PageHeader, Card, CardHeader, Badge, EmptyState } from '../../components/ui'
+import useStudentData from '../../hooks/useStudentData'
+import { PageHeader, Card, CardHeader, Badge, EmptyState, LoadingState, SearchInput } from '../../components/ui'
 import { formatDate, daysUntil, classNames } from '../../utils/helpers'
 
 export default function StudentExams() {
-  const { courses, enrollments, exams } = useData()
+  const { loading, courses, enrollments, exams } = useStudentData()
   const { currentUser } = useAuth()
+  const [search, setSearch] = useState('')
 
   const courseById = useMemo(() => Object.fromEntries(courses.map((c) => [c.id, c])), [courses])
-  const myCourseIds = new Set(enrollments.filter((e) => e.studentId === currentUser.id).map((e) => e.courseId))
+  const myCourseIds = new Set(enrollments.filter((e) => e.studentId === currentUser.id && e.status === 'enrolled').map((e) => e.courseId))
 
-  const myExams = exams.filter((x) => myCourseIds.has(x.courseId)).sort((a, b) => new Date(a.date) - new Date(b.date))
-  const upcoming = myExams.filter((x) => daysUntil(x.date) >= 0)
-  const past = myExams.filter((x) => daysUntil(x.date) < 0)
+  const myExams = exams.filter((x) => myCourseIds.has(x.courseId)).sort((a, b) => new Date(a.date || a.examDate) - new Date(b.date || b.examDate))
+  const q = search.toLowerCase()
+  const filteredExams = myExams.filter((x) => !q || x.title.toLowerCase().includes(q) || (courseById[x.courseId]?.name || '').toLowerCase().includes(q))
+  const upcoming = filteredExams.filter((x) => daysUntil(x.date) >= 0)
+  const past = filteredExams.filter((x) => daysUntil(x.date) < 0)
 
   const typeTone = { Midterm: 'amber', Final: 'red', Quiz: 'sky' }
   const next = upcoming[0]
@@ -47,9 +50,15 @@ export default function StudentExams() {
     )
   }
 
+  if (loading) return <LoadingState />
+
   return (
     <div>
       <PageHeader title="Exam Timetable" subtitle="Your personalized examination schedule." icon={CalendarClock} />
+
+      <Card className="mb-5 p-4">
+        <SearchInput className="w-full sm:w-96" placeholder="Search exams by title or course…" value={search} onChange={(e) => setSearch(e.target.value)} />
+      </Card>
 
       {next && (
         <Card className="mb-6 overflow-hidden">
@@ -66,8 +75,8 @@ export default function StudentExams() {
         </Card>
       )}
 
-      {myExams.length === 0 ? (
-        <Card><EmptyState icon={CalendarClock} title="No exams scheduled" message="Exams for your enrolled courses will appear here." /></Card>
+      {filteredExams.length === 0 ? (
+        <Card><EmptyState icon={CalendarClock} title={search ? 'No exams match' : 'No exams scheduled'} message={search ? 'Try a different search term.' : 'Exams for your enrolled courses will appear here.'} /></Card>
       ) : (
         <div className="space-y-6">
           <Card>

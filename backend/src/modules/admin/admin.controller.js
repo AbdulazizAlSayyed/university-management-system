@@ -13,9 +13,10 @@ exports.listUsers = async (req, res) => {
 
 // POST /api/admin/users/:id/approve
 // Approves an existing 'requested' user by giving them university credentials.
+// If no email is provided, one is auto-generated (firstname.lastname@university.edu).
 exports.approveRequest = async (req, res) => {
   try {
-    const { email } = req.body; // university email chosen by the admin
+    const { email } = req.body;
     const user = await adminService.provisionUser({ userId: req.params.id, universityEmail: email });
     res.status(200).json({ message: 'Account created and credentials emailed', user });
   } catch (err) {

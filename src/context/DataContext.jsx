@@ -1,12 +1,12 @@
 import { createContext, useContext, useState, useCallback, useMemo } from 'react'
-import * as seed from '../data/mockData'
+import * as seed from '../seed/mockData'
 import { uid, scoreToLetter, scoreToPoints } from '../utils/helpers'
 
 const DataContext = createContext(null)
 export const useData = () => useContext(DataContext)
 
-// deep clone helper so edits don't mutate the seed module
 const clone = (x) => JSON.parse(JSON.stringify(x))
+const CURRENT_SEMESTER = 'Fall 2026'
 
 export function DataProvider({ children }) {
   const [users, setUsers] = useState(() => clone(seed.users))
@@ -32,13 +32,7 @@ export function DataProvider({ children }) {
 
   // ---------------- Users ----------------
   const addUser = useCallback((data, actorId = 'u-admin') => {
-    const user = {
-      id: uid('u'),
-      status: 'pending',
-      avatarColor: 'bg-brand-600',
-      createdAt: new Date().toISOString().slice(0, 10),
-      ...data,
-    }
+    const user = { id: uid('u'), status: 'pending', avatarColor: 'bg-brand-600', createdAt: new Date().toISOString().slice(0, 10), ...data }
     setUsers((prev) => [...prev, user])
     log(actorId, 'create', 'User', `Created ${data.role} account "${data.firstName} ${data.lastName}"`)
     return user
@@ -65,7 +59,7 @@ export function DataProvider({ children }) {
 
   // ---------------- Courses ----------------
   const addCourse = useCallback((data, actorId = 'u-admin') => {
-    const course = { id: uid('c'), status: 'active', semester: seed.CURRENT_SEMESTER, color: 'bg-brand-500', ...data }
+    const course = { id: uid('c'), status: 'active', semester: CURRENT_SEMESTER, color: 'bg-brand-500', ...data }
     setCourses((prev) => [...prev, course])
     log(actorId, 'create', 'Course', `Created course ${data.code} — ${data.name}`)
     return course
@@ -91,7 +85,6 @@ export function DataProvider({ children }) {
       ...prev,
       { id: uid('e'), studentId, courseId, enrolledAt: new Date().toISOString().slice(0, 10), status: 'enrolled' },
     ])
-    // create an in-progress grade record
     setGrades((prev) => [...prev, { id: uid('g'), studentId, courseId, letter: null, points: null, score: null, status: 'in-progress' }])
     const c = courses.find((x) => x.id === courseId)
     const s = users.find((x) => x.id === studentId)

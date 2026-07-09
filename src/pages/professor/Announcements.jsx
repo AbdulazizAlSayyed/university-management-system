@@ -1,37 +1,51 @@
 import { useState, useMemo } from 'react'
-import { Megaphone, Plus, Trash2, Pin } from 'lucide-react'
-import { useData } from '../../context/DataContext'
+import { Megaphone, Plus, Trash2, Pin, Search } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import useProfessorData from '../../hooks/useProfessorData'
 import { useToast } from '../../context/ToastContext'
 import {
   PageHeader, Card, Button, IconButton, Badge, Modal, FormField, Input, Textarea,
-  Select, EmptyState,
+  Select, EmptyState, LoadingState, SearchInput,
 } from '../../components/ui'
 import { formatDate, timeAgo } from '../../utils/helpers'
 
 export default function ProfessorAnnouncements() {
-  const { courses, announcements, addAnnouncement, deleteAnnouncement } = useData()
+  const api = useProfessorData()
+  const { loading } = api
   const { currentUser } = useAuth()
   const { toast } = useToast()
   const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const [courseFilter, setCourseFilter] = useState('all')
   const [form, setForm] = useState({ courseId: '', title: '', body: '' })
 
+  const courses = api.courses
+  const announcements = api.announcements
   const myCourses = courses.filter((c) => c.professorId === currentUser.id)
   const myCourseIds = new Set(myCourses.map((c) => c.id))
   const courseById = useMemo(() => Object.fromEntries(courses.map((c) => [c.id, c])), [courses])
 
+  const q = search.toLowerCase()
   const items = announcements
-    .filter((a) => a.scope === 'course' && myCourseIds.has(a.courseId))
+    .filter((a) => myCourseIds.has(a.courseId))
+    .filter((a) => courseFilter === 'all' || a.courseId === courseFilter)
+    .filter((a) => !q || a.title.toLowerCase().includes(q) || (a.body || a.message || '').toLowerCase().includes(q))
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault()
     if (!form.courseId || !form.title || !form.body) return toast('Course, title, and message are required.', 'error')
-    addAnnouncement({ scope: 'course', courseId: form.courseId, authorId: currentUser.id, title: form.title, body: form.body }, currentUser.id)
-    toast('Announcement posted.', 'success')
-    setForm({ courseId: '', title: '', body: '' })
-    setOpen(false)
+    try {
+      await api.addAnnouncement(form.courseId, { title: form.title, body: form.body })
+      toast('Announcement posted.', 'success')
+      setForm({ courseId: '', title: '', body: '' })
+      setOpen(false)
+    } catch (err) {
+      toast(err?.response?.data?.message || 'Failed to post announcement', 'error')
+    }
   }
+
+  if (loading) return <LoadingState />
 
   return (
     <div>
@@ -42,23 +56,33 @@ export default function ProfessorAnnouncements() {
         actions={<Button icon={Plus} onClick={() => setOpen(true)}>New announcement</Button>}
       />
 
+      <Card className="mb-5 p-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <Select className="sm:w-72" value={courseFilter} onChange={(e) => setCourseFilter(e.target.value)}>
+            <option value="all">All courses</option>
+            {myCourses.map((c) => <option key={c.id} value={c.id}>{c.code} — {c.name}</option>)}
+          </Select>
+          <SearchInput className="min-w-[200px] flex-1" placeholder="Search announcements…" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
+      </Card>
+
       {items.length === 0 ? (
-        <Card><EmptyState icon={Megaphone} title="No announcements" message="Post updates for your enrolled students." action={<Button icon={Plus} onClick={() => setOpen(true)}>New announcement</Button>} /></Card>
+        <Card><EmptyState icon={Megaphone} title={search || courseFilter !== 'all' ? 'No announcements match' : 'No announcements'} message={search || courseFilter !== 'all' ? 'Try different filters.' : 'Post updates for your enrolled students.'} action={search || courseFilter !== 'all' ? null : <Button icon={Plus} onClick={() => setOpen(true)}>New announcement</Button>} /></Card>
       ) : (
         <div className="space-y-4">
           {items.map((a) => (
             <Card key={a.id} className="p-5">
-              <div className="flex items-start justify-between gap-4">
-                <div>
+              <div className="flex-wrap flex items-start justify-between gap-4">
+                <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge tone="brand">{courseById[a.courseId]?.code}</Badge>
                     <h3 className="font-bold text-slate-800">{a.title}</h3>
                     {a.pinned && <Badge tone="amber"><Pin size={11} /> Pinned</Badge>}
                   </div>
-                  <p className="mt-1.5 text-sm text-slate-600">{a.body}</p>
+                  <p className="mt-1.5 text-sm text-slate-600">{a.message || a.body}</p>
                   <p className="mt-2 text-xs text-slate-400">Posted {formatDate(a.createdAt)} · {timeAgo(a.createdAt)}</p>
                 </div>
-                <IconButton icon={Trash2} title="Delete" onClick={() => { deleteAnnouncement(a.id, currentUser.id); toast('Deleted.', 'info') }} className="hover:text-red-600" />
+                <IconButton icon={Trash2} title="Delete" onClick={async () => { try { await api.deleteAnnouncement(a._id || a.id); toast('Deleted.', 'info') } catch (err) { toast('Failed to delete', 'error') } }} className="hover:text-red-600" />
               </div>
             </Card>
           ))}

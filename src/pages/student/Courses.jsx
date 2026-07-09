@@ -1,20 +1,25 @@
-import { useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BookOpen, ArrowRight, Compass } from 'lucide-react'
-import { useData } from '../../context/DataContext'
 import { useAuth } from '../../context/AuthContext'
-import { PageHeader, Card, Button, EmptyState } from '../../components/ui'
+import useStudentData from '../../hooks/useStudentData'
+import { PageHeader, Card, Button, EmptyState, LoadingState, SearchInput } from '../../components/ui'
 import CourseCard from '../../components/CourseCard'
 import { fullName } from '../../utils/helpers'
 
 export default function StudentCourses() {
-  const { courses, users, enrollments } = useData()
+  const { loading, courses, users, enrollments } = useStudentData()
   const { currentUser } = useAuth()
   const navigate = useNavigate()
+  const [search, setSearch] = useState('')
 
   const userById = useMemo(() => Object.fromEntries(users.map((u) => [u.id, u])), [users])
-  const myCourseIds = new Set(enrollments.filter((e) => e.studentId === currentUser.id).map((e) => e.courseId))
+  const myCourseIds = new Set(enrollments.filter((e) => e.studentId === currentUser.id && e.status === 'enrolled').map((e) => e.courseId))
   const myCourses = courses.filter((c) => myCourseIds.has(c.id))
+  const q = search.toLowerCase()
+  const filtered = myCourses.filter((c) => !q || c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q))
+
+  if (loading) return <LoadingState />
 
   return (
     <div>
@@ -25,11 +30,15 @@ export default function StudentCourses() {
         actions={<Button variant="secondary" icon={Compass} onClick={() => navigate('/student/catalog')}>Browse catalog</Button>}
       />
 
-      {myCourses.length === 0 ? (
-        <Card><EmptyState icon={Compass} title="Not enrolled yet" message="Browse the catalog to enroll in courses." action={<Button icon={Compass} onClick={() => navigate('/student/catalog')}>Browse catalog</Button>} /></Card>
+      <Card className="mb-5 p-4">
+        <SearchInput className="w-full sm:w-96" placeholder="Search courses by name or code…" value={search} onChange={(e) => setSearch(e.target.value)} />
+      </Card>
+
+      {filtered.length === 0 ? (
+        <Card><EmptyState icon={Compass} title={search ? 'No courses match' : 'Not enrolled yet'} message={search ? 'Try a different search term.' : 'Browse the catalog to enroll in courses.'} action={search ? null : <Button icon={Compass} onClick={() => navigate('/student/catalog')}>Browse catalog</Button>} /></Card>
       ) : (
         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-          {myCourses.map((c) => (
+          {filtered.map((c) => (
             <CourseCard
               key={c.id}
               course={c}

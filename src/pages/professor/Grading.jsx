@@ -1,23 +1,30 @@
 import { useState, useMemo } from 'react'
-import { PenSquare, FileText, Download, Check } from 'lucide-react'
-import { useData } from '../../context/DataContext'
+import { PenSquare, FileText, Download, Check, Search } from 'lucide-react'
+import { uploadApi, professorApi } from '../../api'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
+import useProfessorData from '../../hooks/useProfessorData'
 import {
   PageHeader, Card, Button, Avatar, Badge, StatusBadge, Tabs, Modal, FormField,
-  Input, Textarea, EmptyState,
+  Input, Textarea, EmptyState, LoadingState, SearchInput,
 } from '../../components/ui'
 import { fullName, formatDate, classNames } from '../../utils/helpers'
 
 export default function ProfessorGrading() {
-  const { courses, assignments, submissions, users, gradeSubmission } = useData()
+  const api = useProfessorData()
+  const { loading } = api
   const { currentUser } = useAuth()
   const { toast } = useToast()
   const [tab, setTab] = useState('pending')
+  const [search, setSearch] = useState('')
   const [grading, setGrading] = useState(null)
   const [score, setScore] = useState('')
   const [feedback, setFeedback] = useState('')
 
+  const courses = api.courses
+  const assignments = api.assignments
+  const submissions = api.submissions
+  const users = api.users
   const myCourseIds = new Set(courses.filter((c) => c.professorId === currentUser.id).map((c) => c.id))
   const myAssignments = assignments.filter((a) => myCourseIds.has(a.courseId))
   const myAssignmentIds = new Set(myAssignments.map((a) => a.id))
@@ -28,7 +35,14 @@ export default function ProfessorGrading() {
   const mySubs = submissions.filter((s) => myAssignmentIds.has(s.assignmentId))
   const pending = mySubs.filter((s) => s.status === 'submitted')
   const graded = mySubs.filter((s) => s.status === 'graded')
-  const list = tab === 'pending' ? pending : tab === 'graded' ? graded : mySubs
+  const tabList = tab === 'pending' ? pending : tab === 'graded' ? graded : mySubs
+  const q = search.toLowerCase()
+  const list = tabList.filter((s) => {
+    if (!q) return true
+    const stu = userById[s.studentId]
+    const asg = asgById[s.assignmentId]
+    return (stu && fullName(stu).toLowerCase().includes(q)) || (asg && asg.title.toLowerCase().includes(q))
+  })
 
   const openGrade = (s) => {
     setGrading(s)
@@ -36,15 +50,19 @@ export default function ProfessorGrading() {
     setFeedback(s.feedback ?? '')
   }
 
-  const submitGrade = (e) => {
+  const submitGrade = async (e) => {
     e.preventDefault()
     const asg = asgById[grading.assignmentId]
     const max = asg?.maxScore || 100
     const num = Number(score)
     if (score === '' || isNaN(num) || num < 0 || num > max) return toast(`Score must be 0–${max}.`, 'error')
-    gradeSubmission(grading.id, num, feedback, currentUser.id)
-    toast('Submission graded.', 'success')
-    setGrading(null)
+    try {
+      await professorApi.gradeSubmission(grading.id, num, feedback)
+      toast('Submission graded.', 'success')
+      setGrading(null)
+    } catch (err) {
+      toast(err?.response?.data?.message || 'Failed to save grade.', 'error')
+    }
   }
 
   const tabs = [
@@ -53,13 +71,19 @@ export default function ProfessorGrading() {
     { value: 'all', label: 'All', icon: FileText, count: mySubs.length },
   ]
 
+  if (loading) return <LoadingState />
+
   return (
     <div>
       <PageHeader title="Grade Submissions" subtitle="Review student submissions and assign scores with feedback." icon={PenSquare} />
 
       <Tabs tabs={tabs} active={tab} onChange={setTab} />
 
-      <div className="mt-6">
+      <Card className="mt-6 mb-4 p-4">
+        <SearchInput className="w-full sm:w-96" placeholder="Search student or assignment…" value={search} onChange={(e) => setSearch(e.target.value)} />
+      </Card>
+
+      <div>
         {list.length === 0 ? (
           <Card><EmptyState icon={PenSquare} title={tab === 'pending' ? 'Nothing to grade' : 'No submissions'} message={tab === 'pending' ? 'All submissions have been graded.' : 'Submissions will appear here.'} /></Card>
         ) : (
@@ -115,7 +139,10 @@ export default function ProfessorGrading() {
                 <p className="text-sm font-semibold text-slate-700">{fullName(userById[grading.studentId])}</p>
                 <p className="truncate text-xs text-slate-400"><FileText size={11} className="inline" /> {grading.fileName}</p>
               </div>
-              <Button size="sm" variant="ghost" icon={Download} type="button" onClick={() => toast('Download started (demo).', 'info')}>File</Button>
+              <Button size="sm" variant="ghost" icon={Download} type="button" onClick={() => {
+                if (grading.fileName) window.open(uploadApi.getFileUrl(grading.fileName), '_blank')
+                else toast('File download not available.', 'info')
+              }}>File</Button>
             </div>
             <FormField label={`Score (out of ${asgById[grading.assignmentId]?.maxScore || 100})`} required>
               <Input type="number" min="0" max={asgById[grading.assignmentId]?.maxScore || 100} value={score} onChange={(e) => setScore(e.target.value)} placeholder="0" />

@@ -4,18 +4,18 @@ import {
   BookOpen, GraduationCap, ClipboardList, CalendarClock, ArrowRight, Clock,
   Megaphone, Bell, Compass,
 } from 'lucide-react'
-import { useData } from '../../context/DataContext'
 import { useAuth } from '../../context/AuthContext'
-import { PageHeader, StatCard, Card, CardHeader, Button, Badge, EmptyState } from '../../components/ui'
+import useStudentData from '../../hooks/useStudentData'
+import { PageHeader, StatCard, Card, CardHeader, Button, Badge, EmptyState, LoadingState } from '../../components/ui'
 import CourseCard from '../../components/CourseCard'
 import { fullName, formatDate, timeAgo, daysUntil, calculateGPA, classNames } from '../../utils/helpers'
 
 export default function StudentDashboard() {
-  const { courses, users, enrollments, assignments, submissions, grades, exams, announcements, notifications } = useData()
+  const { loading, courses, users, enrollments, assignments, grades, exams, announcements, notifications } = useStudentData()
   const { currentUser } = useAuth()
   const navigate = useNavigate()
 
-  const myEnrollments = enrollments.filter((e) => e.studentId === currentUser.id)
+  const myEnrollments = enrollments.filter((e) => e.studentId === currentUser.id && e.status === 'enrolled')
   const myCourseIds = new Set(myEnrollments.map((e) => e.courseId))
   const myCourses = courses.filter((c) => myCourseIds.has(c.id))
   const courseById = useMemo(() => Object.fromEntries(courses.map((c) => [c.id, c])), [courses])
@@ -24,22 +24,26 @@ export default function StudentDashboard() {
   const myGrades = grades.filter((g) => g.studentId === currentUser.id)
   const { gpa } = calculateGPA(myGrades, courseById)
 
-  const mySubs = submissions.filter((s) => s.studentId === currentUser.id)
-  const submittedAsgIds = new Set(mySubs.map((s) => s.assignmentId))
+  const submittedAsgIds = new Set()
+  assignments.forEach((a) => {
+    if (a.sub && a.sub.status) submittedAsgIds.add(a.id || a._id)
+  })
   const pendingAssignments = assignments
-    .filter((a) => myCourseIds.has(a.courseId) && !submittedAsgIds.has(a.id) && daysUntil(a.dueDate) >= 0)
+    .filter((a) => myCourseIds.has(a.courseId) && !submittedAsgIds.has(a.id || a._id) && daysUntil(a.dueDate) >= 0)
     .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
 
   const upcomingExams = exams
-    .filter((x) => myCourseIds.has(x.courseId) && daysUntil(x.date) >= 0)
-    .sort((a, b) => new Date(a.date) - new Date(b.date))
+    .filter((x) => myCourseIds.has(x.courseId) && daysUntil(x.date || x.examDate) >= 0)
+    .sort((a, b) => new Date(a.date || a.examDate) - new Date(b.date || b.examDate))
 
   const feed = announcements
-    .filter((a) => a.scope === 'system' || (a.scope === 'course' && myCourseIds.has(a.courseId)))
+    .filter((a) => !a.courseId || myCourseIds.has(a.courseId))
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     .slice(0, 4)
 
-  const myNotifs = notifications.filter((n) => n.userId === currentUser.id).slice(0, 4)
+  const myNotifs = notifications.slice(0, 4)
+
+  if (loading) return <LoadingState />
 
   return (
     <div>
@@ -50,24 +54,24 @@ export default function StudentDashboard() {
         actions={<Button icon={Compass} onClick={() => navigate('/student/catalog')}>Browse courses</Button>}
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard icon={BookOpen} label="Enrolled Courses" value={myCourses.length} sub={`${myCourses.reduce((a, c) => a + c.credits, 0)} credits`} tone="brand" />
         <StatCard icon={GraduationCap} label="Current GPA" value={gpa.toFixed(2)} sub="Out of 4.00" tone="emerald" />
         <StatCard icon={ClipboardList} label="Pending Work" value={pendingAssignments.length} sub="Assignments due" tone="amber" />
         <StatCard icon={CalendarClock} label="Upcoming Exams" value={upcomingExams.length} sub="This semester" tone="violet" />
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
+      <div className="mt-4 sm:mt-6 grid gap-4 sm:gap-6 lg:grid-cols-3">
         {/* Courses */}
         <div className="lg:col-span-2">
-          <div className="mb-3 flex items-center justify-between">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h2 className="font-bold text-slate-800">My Courses</h2>
             <Button variant="ghost" size="sm" onClick={() => navigate('/student/courses')}>View all <ArrowRight size={14} /></Button>
           </div>
           {myCourses.length === 0 ? (
             <Card><EmptyState icon={Compass} title="Not enrolled yet" message="Browse the catalog to enroll in courses." action={<Button icon={Compass} onClick={() => navigate('/student/catalog')}>Browse catalog</Button>} /></Card>
           ) : (
-            <div className="grid gap-5 sm:grid-cols-2">
+            <div className="grid gap-3 sm:gap-5 sm:grid-cols-2">
               {myCourses.map((c) => (
                 <CourseCard
                   key={c.id}
@@ -81,7 +85,7 @@ export default function StudentDashboard() {
           )}
 
           {/* Deadlines */}
-          <Card className="mt-6">
+          <Card className="mt-4 sm:mt-6">
             <CardHeader title="Upcoming Deadlines" icon={Clock}
               action={<Button variant="ghost" size="sm" onClick={() => navigate('/student/assignments')}>All</Button>} />
             {pendingAssignments.length === 0 ? (
@@ -91,9 +95,9 @@ export default function StudentDashboard() {
                 {pendingAssignments.slice(0, 5).map((a) => {
                   const d = daysUntil(a.dueDate)
                   return (
-                    <li key={a.id} className="flex items-center gap-3 px-5 py-3">
+                    <li key={a.id} className="flex flex-wrap items-center gap-2 sm:gap-3 px-4 sm:px-5 py-3">
                       <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-600"><ClipboardList size={16} /></span>
-                      <div className="min-w-0 flex-1">
+                      <div className="min-w-0 flex-1 basis-[120px]">
                         <p className="truncate text-sm font-semibold text-slate-700">{a.title}</p>
                         <p className="truncate text-xs text-slate-400">{courseById[a.courseId]?.code} · Due {formatDate(a.dueDate)}</p>
                       </div>
@@ -108,7 +112,7 @@ export default function StudentDashboard() {
         </div>
 
         {/* Sidebar */}
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           <Card>
             <CardHeader title="Announcements" icon={Megaphone} />
             {feed.length === 0 ? (
@@ -116,8 +120,8 @@ export default function StudentDashboard() {
             ) : (
               <ul className="divide-y divide-slate-100">
                 {feed.map((a) => (
-                  <li key={a.id} className="px-5 py-3.5">
-                    <div className="flex items-center gap-2">
+                  <li key={a.id} className="px-4 sm:px-5 py-3 sm:py-3.5">
+                    <div className="flex flex-wrap items-center gap-2">
                       <Badge tone={a.scope === 'system' ? 'brand' : 'violet'}>{a.scope === 'system' ? 'Campus' : courseById[a.courseId]?.code}</Badge>
                       <p className="truncate text-sm font-semibold text-slate-700">{a.title}</p>
                     </div>
@@ -137,7 +141,7 @@ export default function StudentDashboard() {
             ) : (
               <ul className="divide-y divide-slate-100">
                 {myNotifs.map((n) => (
-                  <li key={n.id} className={classNames('flex items-start gap-3 px-5 py-3', !n.read && 'bg-brand-50/30')}>
+                  <li key={n.id} className={classNames('flex items-start gap-3 px-4 sm:px-5 py-3', !n.read && 'bg-brand-50/30')}>
                     <span className={classNames('mt-1.5 h-2 w-2 shrink-0 rounded-full', n.read ? 'bg-slate-300' : 'bg-brand-500')} />
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold text-slate-700">{n.title}</p>

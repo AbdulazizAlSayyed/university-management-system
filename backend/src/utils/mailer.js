@@ -1,47 +1,45 @@
 const nodemailer = require('nodemailer');
 
-// One transporter reused across the app, authenticated with a Gmail App Password
-// (never a normal Gmail password) via EMAIL_USER / EMAIL_PASS in .env.
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
-});
+const hasEmailConfig = !!(process.env.EMAIL_USER && process.env.EMAIL_PASS);
 
-/**
- * Sends a new user their university login credentials.
- */
+const transporter = hasEmailConfig
+  ? nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+      }
+    })
+  : null;
+
+const SENDER = hasEmailConfig ? `"UniHub" <${process.env.EMAIL_USER}>` : null;
+
+async function maybeSendMail(opts) {
+  if (!transporter) return;
+  try { await transporter.sendMail({ from: SENDER, ...opts }); } catch { /* ignore */ }
+}
+
 async function sendCredentialsEmail({ to, firstName, universityEmail, password, role }) {
-  const subject = 'Your UniHub account is ready';
-  const html = `
-    <div style="font-family: sans-serif; max-width: 480px; margin: auto;">
-      <h2>Welcome to UniHub, ${firstName}!</h2>
-      <p>Your ${role} account has been created. Use the credentials below to sign in:</p>
-      <table style="margin: 16px 0; border-collapse: collapse;">
-        <tr><td style="padding:4px 8px;"><strong>University email</strong></td><td style="padding:4px 8px;">${universityEmail}</td></tr>
-        <tr><td style="padding:4px 8px;"><strong>Password</strong></td><td style="padding:4px 8px;">${password}</td></tr>
-      </table>
-      <p>Please log in and change your password as soon as possible.</p>
-      <p><a href="${process.env.CLIENT_URL}/login">Go to login</a></p>
-    </div>
-  `;
-
-  await transporter.sendMail({
-    from: `"UniHub" <${process.env.EMAIL_USER}>`,
+  await maybeSendMail({
     to,
-    subject,
-    html
+    subject: 'Your UniHub account is ready',
+    html: `
+      <div style="font-family: sans-serif; max-width: 480px; margin: auto;">
+        <h2>Welcome to UniHub, ${firstName}!</h2>
+        <p>Your ${role} account has been created. Use the credentials below to sign in:</p>
+        <table style="margin: 16px 0; border-collapse: collapse;">
+          <tr><td style="padding:4px 8px;"><strong>University email</strong></td><td style="padding:4px 8px;">${universityEmail}</td></tr>
+          <tr><td style="padding:4px 8px;"><strong>Password</strong></td><td style="padding:4px 8px;">${password}</td></tr>
+        </table>
+        <p>Please log in and change your password as soon as possible.</p>
+        <p><a href="${process.env.CLIENT_URL}/login">Go to login</a></p>
+      </div>
+    `
   });
 }
 
-/**
- * Sends a password reset link.
- */
 async function sendResetEmail({ to, resetLink }) {
-  await transporter.sendMail({
-    from: `"UniHub" <${process.env.EMAIL_USER}>`,
+  await maybeSendMail({
     to,
     subject: 'Reset your UniHub password',
     html: `
@@ -55,4 +53,19 @@ async function sendResetEmail({ to, resetLink }) {
   });
 }
 
-module.exports = { sendCredentialsEmail, sendResetEmail };
+async function sendNotificationEmail({ to, subject, body, link }) {
+  await maybeSendMail({
+    to,
+    subject,
+    html: `
+      <div style="font-family: sans-serif; max-width: 480px; margin: auto;">
+        <p style="font-size: 15px; line-height: 1.5;">${body}</p>
+        ${link ? `<p><a href="${process.env.CLIENT_URL}${link}" style="display:inline-block;padding:10px 20px;background:#1A73E8;color:#fff;text-decoration:none;border-radius:6px;">View on UniHub</a></p>` : ''}
+        <hr style="margin:20px 0;border:none;border-top:1px solid #e5e7eb;" />
+        <p style="font-size:12px;color:#9ca3af;">UniHub — University Management System</p>
+      </div>
+    `
+  });
+}
+
+module.exports = { sendCredentialsEmail, sendResetEmail, sendNotificationEmail };

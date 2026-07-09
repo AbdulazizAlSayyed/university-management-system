@@ -89,6 +89,14 @@ export async function getUser(id) {
 export async function updateUser(id, data, actorId) {
   const patch = { ...data }
   delete patch.password
+  if (patch.email) {
+    const dup = await User.findOne({ email: String(patch.email).toLowerCase(), _id: { $ne: id } })
+    if (dup) throw new ApiError(409, 'Email is already registered to another account.')
+  }
+  if (patch.username) {
+    const dup = await User.findOne({ username: patch.username, _id: { $ne: id } })
+    if (dup) throw new ApiError(409, 'Username is already taken.')
+  }
   const user = await User.findByIdAndUpdate(id, patch, { new: true, runValidators: true })
   if (!user) throw new ApiError(404, 'User not found')
   await logAudit(actorId, 'update', 'User', `Updated account "${name(user)}"`)
@@ -165,6 +173,10 @@ export async function createCourse(data, actorId) {
 }
 
 export async function updateCourse(id, data, actorId) {
+  if (data.code) {
+    const dup = await Course.findOne({ code: String(data.code).toUpperCase(), _id: { $ne: id } })
+    if (dup) throw new ApiError(409, 'Course code already exists.')
+  }
   const course = await Course.findByIdAndUpdate(id, cleanPrereqs(data, id), { new: true, runValidators: true })
     .populate('professorId', 'firstName lastName department')
     .populate('prerequisites', 'code name')

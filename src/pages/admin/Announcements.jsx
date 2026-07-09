@@ -44,11 +44,11 @@ export default function AdminAnnouncements() {
           {items.map((a) => (
             <Card key={a.id} className="p-5">
               <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-3">
+                <div className="flex min-w-0 items-start gap-3">
                   <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-600"><Globe size={19} /></span>
-                  <div>
-                    <div className="flex items-center gap-2"><h3 className="font-bold text-slate-800">{a.title}</h3>{a.pinned && <Badge tone="amber"><Pin size={11} /> Pinned</Badge>}</div>
-                    <p className="mt-1 text-sm text-slate-600">{a.body}</p>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2"><h3 className="break-words font-bold text-slate-800">{a.title}</h3>{a.pinned && <Badge tone="amber"><Pin size={11} /> Pinned</Badge>}</div>
+                    <p className="mt-1 whitespace-pre-line break-words text-sm text-slate-600">{a.body}</p>
                     <p className="mt-2 text-xs text-slate-400">Posted {formatDate(a.createdAt)} - {timeAgo(a.createdAt)}</p>
                   </div>
                 </div>

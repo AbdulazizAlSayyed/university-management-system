@@ -66,7 +66,7 @@ export default function AdminAudit() {
           )}
         </Card>
       )}
-      <p className="mt-3 text-xs text-slate-400">Showing {filtered.length} of {logs.length} entries</p>
+      {!loading && !error && <p className="mt-3 text-xs text-slate-400">Showing {filtered.length} of {logs.length} entries</p>}
     </div>
   )
 }

@@ -26,7 +26,8 @@ export default function AdminEnrollment() {
     try {
       const [c, s] = await Promise.all([adminApi.listCourses(), adminApi.listUsers({ role: 'student' })])
       setCourses(c); setStudents(s)
-      if (c.length && !courseId) setCourseId(c[0].id)
+      // keep the current selection; only default to the first course when nothing is selected
+      if (c.length) setCourseId((prev) => (prev && c.some((x) => x.id === prev) ? prev : c[0].id))
     } catch (e) { setError(adminApi.errMsg(e)) }
     finally { setLoading(false) }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps

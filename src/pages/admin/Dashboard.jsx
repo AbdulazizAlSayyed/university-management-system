@@ -148,7 +148,7 @@ export default function AdminDashboard() {
                     <p className="truncate text-sm font-semibold text-slate-700">{fullName(u)}</p>
                     <p className="truncate text-xs text-slate-400">{u.email}</p>
                   </div>
-                  <Badge tone="brand">{u.role}</Badge>
+                  <Badge tone="brand" className="hidden sm:inline-flex">{u.role}</Badge>
                   <Button size="sm" variant="success" icon={UserCheck} onClick={() => activate(u.id)}>Activate</Button>
                 </li>
               ))}

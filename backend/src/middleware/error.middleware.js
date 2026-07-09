@@ -5,7 +5,14 @@ export function errorHandler(err, req, res, next) { // eslint-disable-line no-un
 
   if (err.code === 11000) {
     status = 409
-    message = 'Email is already registered.'
+    const field = Object.keys(err.keyValue || err.keyPattern || {})[0]
+    const labels = {
+      email: 'Email is already registered.',
+      username: 'Username is already taken.',
+      code: 'Course code already exists.',
+      studentId: 'Student ID already exists.',
+    }
+    message = labels[field] || `Duplicate value for "${field || 'a unique field'}".`
   }
   if (err.name === 'ValidationError') {
     status = 422

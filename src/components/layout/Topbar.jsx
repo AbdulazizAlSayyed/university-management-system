@@ -72,7 +72,7 @@ export default function Topbar({ onMenu }) {
           </button>
 
           {notifOpen && (
-            <div className="absolute right-0 mt-2 w-80 origin-top-right animate-fade-in rounded-xl border border-slate-200 bg-white shadow-xl sm:w-96">
+            <div className="absolute right-0 mt-2 w-[min(20rem,calc(100vw-2rem))] origin-top-right animate-fade-in rounded-xl border border-slate-200 bg-white shadow-xl sm:w-96">
               <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
                 <p className="font-semibold text-slate-800">Notifications</p>
                 {unread > 0 && (

@@ -157,8 +157,8 @@ export default function AdminUsers() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
-                    <th className="px-5 py-3">User</th><th className="px-5 py-3">Role</th><th className="px-5 py-3">Details</th>
-                    <th className="px-5 py-3">Status</th><th className="px-5 py-3">Created</th><th className="px-5 py-3 text-right">Actions</th>
+                    <th className="px-5 py-3">User</th><th className="px-5 py-3">Role</th><th className="hidden px-5 py-3 md:table-cell">Details</th>
+                    <th className="px-5 py-3">Status</th><th className="hidden px-5 py-3 lg:table-cell">Created</th><th className="px-5 py-3 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -171,9 +171,9 @@ export default function AdminUsers() {
                         </div>
                       </td>
                       <td className="px-5 py-3"><Badge tone={roleTone[u.role]}>{u.role}</Badge></td>
-                      <td className="px-5 py-3 text-slate-500">{u.role === 'student' ? (u.studentId || '-') : (u.department || '-')}</td>
+                      <td className="hidden px-5 py-3 text-slate-500 md:table-cell">{u.role === 'student' ? (u.studentId || '-') : (u.department || '-')}</td>
                       <td className="px-5 py-3"><StatusBadge status={u.status} /></td>
-                      <td className="px-5 py-3 text-slate-500">{formatDate(u.createdAt)}</td>
+                      <td className="hidden px-5 py-3 text-slate-500 lg:table-cell">{formatDate(u.createdAt)}</td>
                       <td className="px-5 py-3">
                         <div className="flex items-center justify-end gap-1">
                           {u.status === 'active'
@@ -191,7 +191,7 @@ export default function AdminUsers() {
           )}
         </Card>
       )}
-      <p className="mt-3 text-xs text-slate-400">Showing {filtered.length} of {users.length} accounts</p>
+      {!loading && !error && <p className="mt-3 text-xs text-slate-400">Showing {filtered.length} of {users.length} accounts</p>}
 
       {modalOpen && <UserFormModal open={modalOpen} onClose={() => setModalOpen(false)} onSave={handleSave} initial={editing} saving={saving} />}
       <ConfirmDialog open={!!confirmDel} onClose={() => setConfirmDel(null)} onConfirm={doDelete}

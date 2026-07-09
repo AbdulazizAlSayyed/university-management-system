@@ -25,6 +25,7 @@ function ExamFormModal({ open, onClose, onSave, initial, courses, saving }) {
     if (!form.title) err.title = 'Required'
     if (!form.date) err.date = 'Required'
     if (!form.room) err.room = 'Required'
+    if (form.startTime && form.endTime && form.endTime <= form.startTime) err.endTime = 'Must be after the start time'
     setErrors(err); if (Object.keys(err).length) return
     onSave(form)
   }
@@ -48,7 +49,7 @@ function ExamFormModal({ open, onClose, onSave, initial, courses, saving }) {
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <FormField label="Start time"><Input type="time" value={form.startTime} onChange={set('startTime')} /></FormField>
-          <FormField label="End time"><Input type="time" value={form.endTime} onChange={set('endTime')} /></FormField>
+          <FormField label="End time" error={errors.endTime}><Input type="time" value={form.endTime} onChange={set('endTime')} error={errors.endTime} /></FormField>
         </div>
       </form>
     </Modal>

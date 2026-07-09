@@ -59,7 +59,7 @@ export default function AdminCalendar() {
                     <div className="min-w-0 flex-1"><p className="font-semibold text-slate-700">{ev.title}</p><p className="text-xs text-slate-400">{formatDate(ev.date, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p></div>
                     <Badge tone={meta.tone}>{meta.label}</Badge>
                     {dLeft >= 0 && dLeft <= 60 && <span className="hidden text-xs font-medium text-slate-400 sm:block">{dLeft === 0 ? 'Today' : `in ${dLeft}d`}</span>}
-                    <IconButton icon={Trash2} title="Remove" onClick={() => remove(ev.id)} className="opacity-0 transition group-hover:opacity-100 hover:text-red-600" />
+                    <IconButton icon={Trash2} title="Remove" onClick={() => remove(ev.id)} className="transition hover:text-red-600 sm:opacity-0 sm:group-hover:opacity-100" />
                   </li>
                 )
               })}

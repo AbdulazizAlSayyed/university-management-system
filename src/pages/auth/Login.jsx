@@ -6,19 +6,6 @@ import {
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { Button, FormField, Input } from '../../components/ui'
-import { classNames } from '../../utils/helpers'
-
-const DEMO_CREDENTIALS = [
-  { role: 'admin', email: 'admin@university.edu', password: 'Admin@123', label: 'Administrator' },
-  { role: 'professor', email: 'professor@university.edu', password: 'Prof@123', label: 'Professor' },
-  { role: 'student', email: 'student@university.edu', password: 'Student@123', label: 'Student' },
-]
-
-const ROLE_STYLES = {
-  admin: 'border-brand-200 bg-brand-50 text-brand-700',
-  professor: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-  student: 'border-indigo-200 bg-indigo-50 text-indigo-700',
-}
 
 export default function Login() {
   const { login } = useAuth()
@@ -33,7 +20,6 @@ export default function Login() {
   const doLogin = async (email, password) => {
     setError('')
     setLoading(true)
-    
     try {
       const user = await login(email, password);
       setLoading(false);
@@ -54,15 +40,8 @@ export default function Login() {
     doLogin(identifier, password)
   }
 
-  const fillDemo = (cred) => {
-    setIdentifier(cred.email)
-    setPassword(cred.password)
-    doLogin(cred.email, cred.password)
-  }
-
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
-      {/* Left brand panel */}
       <div className="relative hidden overflow-hidden bg-gradient-to-br from-brand-700 via-brand-600 to-indigo-800 lg:flex lg:flex-col lg:justify-between lg:p-12">
         <div className="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-white/10 blur-2xl" />
         <div className="absolute -bottom-24 -left-16 h-80 w-80 rounded-full bg-indigo-400/20 blur-3xl" />
@@ -101,15 +80,13 @@ export default function Login() {
           </div>
         </div>
 
-        <p className="relative text-xs text-white/50">© 2026 UniHub · Business Requirements v1.1</p>
+        <p className="relative text-xs text-white/50">© 2026 UniHub</p>
       </div>
 
-      {/* Right form panel */}
       <div className="flex items-center justify-center px-5 py-10 sm:px-8">
         <div className="w-full max-w-md">
-          {/* Mobile brand */}
           <div className="mb-8 flex items-center gap-2.5 lg:hidden">
-            <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand-600 text-white">
+            <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-brand-600 to-brand-700 text-white shadow-sm">
               <GraduationCap size={22} />
             </span>
             <div>
@@ -122,7 +99,7 @@ export default function Login() {
           <p className="mt-1 text-sm text-slate-500">Enter your credentials to access the portal.</p>
 
           {error && (
-            <div className="mt-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+            <div className="mt-5 animate-fade-in rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
               {error}
             </div>
           )}
@@ -155,7 +132,7 @@ export default function Login() {
                 <button
                   type="button"
                   onClick={() => setShowPw((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600"
                 >
                   {showPw ? <EyeOff size={17} /> : <Eye size={17} />}
                 </button>
@@ -167,7 +144,7 @@ export default function Login() {
                 <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
                 Remember me
               </label>
-              <Link to="/forgot-password" className="text-sm font-semibold text-brand-600 hover:text-brand-700">
+              <Link to="/forgot-password" className="text-sm font-semibold text-brand-600 transition hover:text-brand-700">
                 Forgot password?
               </Link>
             </div>
@@ -178,50 +155,16 @@ export default function Login() {
             </Button>
           </form>
 
-          {/* Navigation footer: role-specific request links replace self-signup */}
           <p className="mt-5 text-center text-sm text-slate-600">
             Don't have an account?{' '}
-            <Link to="/register/student" className="font-semibold text-brand-600 hover:text-brand-700 transition-colors">
+            <Link to="/register/student" className="font-semibold text-brand-600 transition hover:text-brand-700">
               Register as Student
             </Link>
             {' '}or{' '}
-            <Link to="/register/professor" className="font-semibold text-brand-600 hover:text-brand-700 transition-colors">
+            <Link to="/register/professor" className="font-semibold text-brand-600 transition hover:text-brand-700">
               Professor
             </Link>
           </p>
-
-          {/* Demo accounts */}
-          <div className="mt-8">
-            <div className="flex items-center gap-3">
-              <div className="h-px flex-1 bg-slate-200" />
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Demo accounts</span>
-              <div className="h-px flex-1 bg-slate-200" />
-            </div>
-            <p className="mt-3 text-center text-xs text-slate-400">
-              Click a card to sign in instantly (credentials auto-filled).
-            </p>
-            <div className="mt-3 space-y-2">
-              {DEMO_CREDENTIALS.map((c) => (
-                <button
-                  key={c.role}
-                  onClick={() => fillDemo(c)}
-                  disabled={loading}
-                  className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:border-brand-300 hover:bg-brand-50/40 disabled:opacity-60"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className={classNames('grid h-9 w-9 place-items-center rounded-lg border text-xs font-bold uppercase', ROLE_STYLES[c.role])}>
-                      {c.label[0]}
-                    </span>
-                    <div>
-                      <p className="text-sm font-semibold text-slate-700">{c.label}</p>
-                      <p className="text-xs text-slate-400">{c.email}</p>
-                    </div>
-                  </div>
-                  <code className="rounded bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-500">{c.password}</code>
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
     </div>

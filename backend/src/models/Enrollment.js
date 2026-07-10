@@ -13,6 +13,8 @@ const enrollmentSchema = new Schema(
 )
 
 enrollmentSchema.index({ studentId: 1, courseId: 1 }, { unique: true })
+enrollmentSchema.index({ studentId: 1, status: 1 })
+enrollmentSchema.index({ courseId: 1, status: 1 })
 enrollmentSchema.set('toJSON', {
   virtuals: true,
   transform(doc, ret) { delete ret._id; delete ret.__v; return ret },

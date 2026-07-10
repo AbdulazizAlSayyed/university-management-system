@@ -25,6 +25,7 @@ export const studentApi = {
   getNotifications: () => client.get('/student/notifications').then((r) => r.data),
   markNotificationRead: (id) => client.patch(`/student/notifications/${id}/read`).then((r) => r.data),
   markAllNotificationsRead: () => client.patch('/student/notifications/read-all').then((r) => r.data),
+  getInit: () => client.get('/student/init').then((r) => r.data),
   getUsers: () => client.get('/student/users').then((r) => r.data),
   getAllCourses: () => client.get('/student/all-courses').then((r) => r.data),
   getEnrollments: () => client.get('/student/enrollments').then((r) => r.data),

@@ -10,7 +10,7 @@ import {
 import { formatDate, daysUntil } from '../../utils/helpers'
 
 export default function StudentAssignments() {
-  const { loading, courses, enrollments, assignments, submitAssignment } = useStudentData()
+  const { loading, loaded, courses, enrollments, assignments, submitAssignment } = useStudentData()
   const { currentUser } = useAuth()
   const { toast } = useToast()
   const [tab, setTab] = useState('todo')
@@ -53,7 +53,7 @@ export default function StudentAssignments() {
     { value: 'all', label: 'All', icon: ClipboardList, count: mine.length },
   ]
 
-  if (loading) return <LoadingState />
+  if (!loaded && loading) return <LoadingState />
 
   return (
     <div>

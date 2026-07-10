@@ -1,66 +1,54 @@
 import { useState, useMemo } from 'react'
-<<<<<<< HEAD
-import { Compass, Check, Plus, Minus, Search } from 'lucide-react'
-=======
-import { Compass, Check, Plus, Minus, Search, Lock, Hourglass } from 'lucide-react'
-import { useData } from '../../context/DataContext'
->>>>>>> Development
+import { BookOpen, Check, Plus, Minus, Search, Lock, Hourglass, GraduationCap, Layers } from 'lucide-react'
+import useStudentData from '../../hooks/useStudentData'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
-import useStudentData from '../../hooks/useStudentData'
-import { PageHeader, Card, Button, Badge, SearchInput, EmptyState, LoadingState } from '../../components/ui'
+import { PageHeader, Card, Button, Badge, EmptyState } from '../../components/ui'
 import CourseCard from '../../components/CourseCard'
-import { fullName } from '../../utils/helpers'
+import { fullName, classNames } from '../../utils/helpers'
+
+const FILTERS = [
+  { value: 'all', label: 'All courses' },
+  { value: 'available', label: 'Available' },
+  { value: 'enrolled', label: 'My courses' },
+]
 
 export default function StudentCatalog() {
-<<<<<<< HEAD
-  const { loading, courses, users, enrollments, enroll, drop } = useStudentData()
-=======
-  const { courses, users, enrollments, enrollStudent, dropStudent, missingPrereqs } = useData()
->>>>>>> Development
+  const { loading, loaded, courses, users, enrollments, grades, enroll, drop } = useStudentData()
   const { currentUser } = useAuth()
   const { toast } = useToast()
   const [search, setSearch] = useState('')
+  const [filter, setFilter] = useState('all')
 
-  const userById = useMemo(() => Object.fromEntries(users.map((u) => [u.id, u])), [users])
-<<<<<<< HEAD
-  const myCourseIds = useMemo(
-    () => new Set(enrollments.filter((e) => e.studentId === currentUser.id && e.status === 'enrolled').map((e) => e.courseId)),
-    [enrollments, currentUser.id]
-  )
-  const countFor = (cid) => enrollments.filter((e) => e.courseId === cid && e.status === 'enrolled').length
+  const userId = currentUser._id || currentUser.id
 
-  const list = search
-    ? courses.filter((c) => {
-        const q = search.toLowerCase()
-        return c.code.toLowerCase().includes(q) || c.name.toLowerCase().includes(q)
-      })
-    : courses
-
-  const toggle = async (c) => {
-    if (myCourseIds.has(c.id)) {
-      try { await drop(c.id); toast(`Dropped ${c.code}.`, 'info') } catch (err) { console.error('drop error', err); toast(err?.response?.data?.message || 'Failed to drop', 'error') }
-    } else {
-      if (countFor(c.id) >= c.capacity) return toast(`${c.code} is full.`, 'error')
-      try { await enroll(c.id); toast(`Enrolled in ${c.code}!`, 'success') } catch (err) { console.error('enroll error', err); toast(err?.response?.data?.message || 'Failed to enroll', 'error') }
-=======
-  const courseById = useMemo(() => Object.fromEntries(courses.map((c) => [c.id, c])), [courses])
-  // My enrollment (enrolled OR waitlisted) per course
+  const userById = useMemo(() => Object.fromEntries(users.map((u) => [u._id || u.id, u])), [users])
+  const courseById = useMemo(() => Object.fromEntries(courses.map((c) => [c._id || c.id, c])), [courses])
+  const completedPrereqs = useMemo(() => {
+    const passed = new Set()
+    grades.forEach((g) => {
+      if (g.status === 'final' && g.letter && g.letter.toUpperCase() !== 'F') passed.add(g.courseId.toString())
+    })
+    return passed
+  }, [grades])
   const myEnrollmentFor = useMemo(() => {
     const map = {}
-    enrollments.forEach((e) => { if (e.studentId === currentUser.id) map[e.courseId] = e })
+    enrollments.forEach((e) => { if (e.studentId === userId) map[e.courseId] = e })
     return map
-  }, [enrollments, currentUser.id])
+  }, [enrollments, userId])
   const countFor = (cid) => enrollments.filter((e) => e.courseId === cid && e.status === 'enrolled').length
   const waitlistFor = (cid) =>
     enrollments
       .filter((e) => e.courseId === cid && e.status === 'waitlisted')
       .sort((a, b) => new Date(a.waitlistedAt || 0) - new Date(b.waitlistedAt || 0))
-  const myWaitlistPosition = (cid) => waitlistFor(cid).findIndex((e) => e.studentId === currentUser.id) + 1
+  const myWaitlistPosition = (cid) => waitlistFor(cid).findIndex((e) => e.studentId === userId) + 1
+
+  const enrolledCount = enrollments.filter((e) => e.studentId === userId && e.status === 'enrolled').length
+  const waitlistedCount = enrollments.filter((e) => e.studentId === userId && e.status === 'waitlisted').length
 
   const list = courses.filter((c) => {
     if (c.status !== 'active') return false
-    const mine = !!myEnrollmentFor[c.id]
+    const mine = !!myEnrollmentFor[c._id || c.id]
     if (filter === 'enrolled' && !mine) return false
     if (filter === 'available' && mine) return false
     if (search) {
@@ -70,66 +58,143 @@ export default function StudentCatalog() {
     return true
   })
 
-  const toggle = (c) => {
-    const mine = myEnrollmentFor[c.id]
+  const toggle = async (c) => {
+    const cid = c._id || c.id
+    const mine = myEnrollmentFor[cid]
     if (mine) {
-      dropStudent(currentUser.id, c.id)
-      toast(mine.status === 'waitlisted' ? `Left the waitlist of ${c.code}.` : `Dropped ${c.code}.`, 'info')
-      return
->>>>>>> Development
-    }
-    const res = enrollStudent(currentUser.id, c.id)
-    if (!res.ok) {
-      if (res.reason === 'prerequisites') toast(`You must pass ${res.missing.join(', ')} before enrolling in ${c.code}.`, 'error')
-      else toast(`Could not enroll in ${c.code}.`, 'error')
+      try {
+        await drop(cid)
+        toast(mine.status === 'waitlisted' ? `Left the waitlist of ${c.code}.` : `Dropped ${c.code}.`, 'info')
+      } catch (e) {
+        toast(e?.response?.data?.message || 'Failed to drop course.', 'error')
+      }
       return
     }
-    if (res.status === 'waitlisted') toast(`${c.code} is full — you were added to the waitlist. You'll be enrolled automatically when a seat opens.`, 'info')
-    else toast(`Enrolled in ${c.code}!`, 'success')
+    try {
+      const res = await enroll(cid)
+      if (res.status === 'waitlisted') toast(`${c.code} is full — you were added to the waitlist.`, 'info')
+      else toast(`Enrolled in ${c.code}!`, 'success')
+    } catch (e) {
+      const msg = e?.response?.data?.message || e?.message || ''
+      toast(msg || `Could not enroll in ${c.code}.`, 'error')
+    }
   }
-
-  if (loading) return <LoadingState />
 
   return (
     <div>
-      <PageHeader title="Course Catalog" subtitle="Browse available courses." icon={Compass} />
+      <PageHeader title="Course Catalog" subtitle="Browse and enroll in available courses." icon={GraduationCap} />
 
-      <Card className="mb-5 p-4">
-        <SearchInput className="w-full" placeholder="Search courses by code or name…" value={search} onChange={(e) => setSearch(e.target.value)} />
-      </Card>
+      {/* Stats bar */}
+      <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <Card className="flex items-center gap-3 px-4 py-3">
+          <span className="grid h-9 w-9 place-items-center rounded-lg bg-brand-50 text-brand-600">
+            <BookOpen size={18} />
+          </span>
+          <div>
+            <p className="text-lg font-bold text-slate-800">{courses.filter((c) => c.status === 'active').length}</p>
+            <p className="text-[11px] font-medium text-slate-400">Total courses</p>
+          </div>
+        </Card>
+        <Card className="flex items-center gap-3 px-4 py-3">
+          <span className="grid h-9 w-9 place-items-center rounded-lg bg-emerald-50 text-emerald-600">
+            <Check size={18} />
+          </span>
+          <div>
+            <p className="text-lg font-bold text-slate-800">{enrolledCount}</p>
+            <p className="text-[11px] font-medium text-slate-400">Enrolled</p>
+          </div>
+        </Card>
+        <Card className="col-span-2 sm:col-span-1 flex items-center gap-3 px-4 py-3">
+          <span className="grid h-9 w-9 place-items-center rounded-lg bg-amber-50 text-amber-600">
+            <Hourglass size={18} />
+          </span>
+          <div>
+            <p className="text-lg font-bold text-slate-800">{waitlistedCount}</p>
+            <p className="text-[11px] font-medium text-slate-400">Waitlisted</p>
+          </div>
+        </Card>
+      </div>
 
-      {list.length === 0 ? (
-        <Card><EmptyState icon={Search} title="No courses found" message={search ? 'Try a different search term.' : 'No courses available.'} /></Card>
+      {/* Search + filter bar */}
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative flex-1">
+          <Search size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            className="h-10 w-full rounded-lg border border-slate-300 bg-white pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-400 transition focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25"
+            placeholder="Search courses by code or name…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
+          {FILTERS.map((f) => (
+            <button
+              key={f.value}
+              onClick={() => setFilter(f.value)}
+              className={classNames(
+                'rounded-md px-3 py-1.5 text-sm font-medium transition-all',
+                filter === f.value
+                  ? 'bg-white text-brand-700 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700'
+              )}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Course grid */}
+      {loading && !loaded ? (
+        <div className="flex items-center justify-center py-20">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
+        </div>
+      ) : list.length === 0 ? (
+        <Card>
+          <EmptyState
+            icon={filter === 'enrolled' ? Layers : Search}
+            title={filter === 'enrolled' ? 'Not enrolled in any courses' : 'No courses found'}
+            message={
+              filter === 'enrolled'
+                ? 'Browse the catalog to find and enroll in a course.'
+                : search
+                  ? 'Try a different search term or filter.'
+                  : 'No courses are currently available for enrollment.'
+            }
+          />
+        </Card>
       ) : (
         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-          {list.map((c) => {
-            const mine = myEnrollmentFor[c.id]
+          {list.map((c, i) => {
+            const cid = c._id || c.id
+            const mine = myEnrollmentFor[cid]
             const enrolled = mine?.status === 'enrolled'
             const waitlisted = mine?.status === 'waitlisted'
-            const full = countFor(c.id) >= c.capacity
-            const missing = mine ? [] : missingPrereqs(currentUser.id, c)
+            const full = countFor(cid) >= c.capacity
+            const missing = (c.prerequisites || []).filter((pid) => !completedPrereqs.has(pid.toString()))
             const locked = missing.length > 0
-            const prereqCodes = (c.prerequisites || []).map((pid) => courseById[pid]?.code || pid)
+            const prereqCodes = missing.map((pid) => courseById[pid]?.code || pid)
 
             const badge = enrolled ? <Badge tone="emerald"><Check size={11} /> Enrolled</Badge>
-              : waitlisted ? <Badge tone="amber"><Hourglass size={11} /> Waitlist #{myWaitlistPosition(c.id)}</Badge>
+              : waitlisted ? <Badge tone="amber"><Hourglass size={11} /> Waitlist #{myWaitlistPosition(cid)}</Badge>
               : locked ? <Badge tone="slate"><Lock size={11} /> Locked</Badge>
               : full ? <Badge tone="red">Full</Badge>
               : null
 
             const btnLabel = enrolled ? 'Drop course'
               : waitlisted ? 'Leave waitlist'
-              : locked ? `Requires ${missing.join(', ')}`
+              : locked ? `Requires ${prereqCodes.join(', ')}`
               : full ? 'Join waitlist'
-              : 'Enroll'
+              : 'Enroll now'
             const btnIcon = enrolled || waitlisted ? Minus : locked ? Lock : full ? Hourglass : Plus
 
             return (
               <CourseCard
-                key={c.id}
+                key={cid}
                 course={c}
+                index={i}
                 professorName={userById[c.professorId] ? fullName(userById[c.professorId]) : 'TBA'}
-                enrolledCount={countFor(c.id)}
+                enrolledCount={countFor(cid)}
                 right={badge}
                 footer={
                   <div className="space-y-2">
@@ -139,7 +204,7 @@ export default function StudentCatalog() {
                       </p>
                     )}
                     <Button
-                      variant={mine ? 'secondary' : 'primary'}
+                      variant={mine ? 'secondary' : locked ? 'ghost' : 'primary'}
                       size="sm"
                       className="w-full"
                       icon={btnIcon}

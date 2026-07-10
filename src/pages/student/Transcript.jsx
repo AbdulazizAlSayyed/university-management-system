@@ -6,7 +6,7 @@ import { PageHeader, Card, Button, LoadingState } from '../../components/ui'
 import { fullName, calculateGPA, gradeColor, classNames } from '../../utils/helpers'
 
 export default function StudentTranscript() {
-  const { loading, courses, users, enrollments, grades } = useStudentData()
+  const { loading, loaded, courses, users, enrollments, grades } = useStudentData()
   const { currentUser } = useAuth()
 
   const courseById = useMemo(() => Object.fromEntries(courses.map((c) => [c.id, c])), [courses])
@@ -24,7 +24,7 @@ export default function StudentTranscript() {
 
   const totalCredits = rows.reduce((a, r) => a + (r.course.credits || 0), 0)
 
-  if (loading) return <LoadingState />
+  if (!loaded && loading) return <LoadingState />
 
   return (
     <div>

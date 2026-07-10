@@ -40,7 +40,7 @@ export const formatDateTime = (dateStr) => {
 export const timeAgo = (dateStr) => {
   if (!dateStr) return ''
   const d = new Date(dateStr)
-  const now = new Date('2026-10-06T12:00:00') // fixed "today" for the demo
+  const now = new Date()
   const diff = Math.round((now - d) / 1000)
   const abs = Math.abs(diff)
   const units = [

@@ -1,8 +1,14 @@
-const {
-  User, Course, Enrollment, Assignment, Submission,
-  Grade, Exam, Announcement, Notification, Attendance, Material
-} = require('../../models');
-const { sendNotificationEmail } = require('../../utils/mailer');
+import User from '../../models/User.js'
+import Course from '../../models/Course.js'
+import Enrollment from '../../models/Enrollment.js'
+import Assignment from '../../models/Assignment.js'
+import Submission from '../../models/Submission.js'
+import Grade from '../../models/Grade.js'
+import Announcement from '../../models/Announcement.js'
+import Notification from '../../models/Notification.js'
+import Attendance from '../../models/Attendance.js'
+import Material from '../../models/Material.js'
+import { sendNotificationEmail } from '../../utils/mailer.js'
 
 const GRADE_SCALE = [
   { letter: 'A', min: 93, points: 4.0 },
@@ -15,43 +21,43 @@ const GRADE_SCALE = [
   { letter: 'C-', min: 70, points: 1.7 },
   { letter: 'D', min: 60, points: 1.0 },
   { letter: 'F', min: 0, points: 0.0 },
-];
+]
 
 function scoreToLetter(score) {
-  if (score == null) return null;
-  const row = GRADE_SCALE.find((g) => score >= g.min);
-  return row ? row.letter : 'F';
+  if (score == null) return null
+  const row = GRADE_SCALE.find((g) => score >= g.min)
+  return row ? row.letter : 'F'
 }
 
 function scoreToPoints(score) {
-  if (score == null) return null;
-  const row = GRADE_SCALE.find((g) => score >= g.min);
-  return row ? row.points : 0;
+  if (score == null) return null
+  const row = GRADE_SCALE.find((g) => score >= g.min)
+  return row ? row.points : 0
 }
 
 async function getMyCourseIds(professorId) {
-  const courses = await Course.find({ professorId });
-  return courses.map((c) => c._id.toString());
+  const courses = await Course.find({ professorId })
+  return courses.map((c) => c._id.toString())
 }
 
 // ---- Dashboard ----
-async function getDashboard(professorId) {
-  const courses = await Course.find({ professorId });
-  const courseIds = courses.map((c) => c._id);
+export async function getDashboard(professorId) {
+  const courses = await Course.find({ professorId })
+  const courseIds = courses.map((c) => c._id)
 
-  const enrollments = await Enrollment.find({ courseId: { $in: courseIds }, status: 'enrolled' });
-  const studentSet = new Set(enrollments.map((e) => e.studentId.toString()));
+  const enrollments = await Enrollment.find({ courseId: { $in: courseIds }, status: 'enrolled' })
+  const studentSet = new Set(enrollments.map((e) => e.studentId.toString()))
 
-  const assignments = await Assignment.find({ courseId: { $in: courseIds } });
-  const assignmentIds = assignments.map((a) => a._id);
-  const submissions = await Submission.find({ assignmentId: { $in: assignmentIds } });
-  const pendingSubs = submissions.filter((s) => s.grade == null);
+  const assignments = await Assignment.find({ courseId: { $in: courseIds } })
+  const assignmentIds = assignments.map((a) => a._id)
+  const submissions = await Submission.find({ assignmentId: { $in: assignmentIds } })
+  const pendingSubs = submissions.filter((s) => s.grade == null)
 
-  const now = new Date();
+  const now = new Date()
   const upcoming = assignments
     .filter((a) => new Date(a.deadline) >= now)
     .sort((a, b) => new Date(a.deadline) - new Date(b.deadline))
-    .slice(0, 5);
+    .slice(0, 5)
 
   return {
     myCoursesCount: courses.length,
@@ -66,57 +72,57 @@ async function getDashboard(professorId) {
       assignmentId: s.assignmentId.toString(),
     })),
     upcomingAssignments: upcoming,
-  };
+  }
 }
 
 // ---- Courses ----
-async function getCourses(professorId) {
-  const courses = await Course.find({ professorId });
-  const courseIds = courses.map((c) => c._id);
-  const enrollments = await Enrollment.find({ courseId: { $in: courseIds }, status: 'enrolled' });
-  const countMap = {};
+export async function getCourses(professorId) {
+  const courses = await Course.find({ professorId })
+  const courseIds = courses.map((c) => c._id)
+  const enrollments = await Enrollment.find({ courseId: { $in: courseIds }, status: 'enrolled' })
+  const countMap = {}
   enrollments.forEach((e) => {
-    const key = e.courseId.toString();
-    countMap[key] = (countMap[key] || 0) + 1;
-  });
+    const key = e.courseId.toString()
+    countMap[key] = (countMap[key] || 0) + 1
+  })
   return courses.map((c) => ({
     ...c.toObject({ virtuals: true }),
     name: c.name || c.title,
     id: c._id.toString(),
     enrolledCount: countMap[c._id.toString()] || 0,
-  }));
+  }))
 }
 
 // ---- Course Detail (with roster) ----
-async function getCourseDetail(professorId, courseId) {
-  const course = await Course.findOne({ _id: courseId, professorId });
-  if (!course) throw { status: 404, message: 'Course not found' };
+export async function getCourseDetail(professorId, courseId) {
+  const course = await Course.findOne({ _id: courseId, professorId })
+  if (!course) throw { status: 404, message: 'Course not found' }
 
-  const enrollments = await Enrollment.find({ courseId, status: 'enrolled' });
-  const studentIds = enrollments.map((e) => e.studentId);
-  const students = await User.find({ _id: { $in: studentIds } }).select('-password');
+  const enrollments = await Enrollment.find({ courseId, status: 'enrolled' })
+  const studentIds = enrollments.map((e) => e.studentId)
+  const students = await User.find({ _id: { $in: studentIds } }).select('-password')
 
   return {
     course: { ...course.toObject({ virtuals: true }), name: course.name || course.title, id: course._id.toString() },
     roster: students.map((s) => ({ ...s.toObject(), id: s._id.toString() })),
     enrolledCount: enrollments.length,
-  };
+  }
 }
 
-// ---- Materials (standalone collection) ----
-async function getMaterials(professorId, courseId) {
-  const course = await Course.findOne({ _id: courseId, professorId });
-  if (!course) throw { status: 404, message: 'Course not found' };
+// ---- Materials ----
+export async function getMaterials(professorId, courseId) {
+  const course = await Course.findOne({ _id: courseId, professorId })
+  if (!course) throw { status: 404, message: 'Course not found' }
 
-  const materials = await Material.find({ courseId }).sort({ createdAt: -1 });
+  const materials = await Material.find({ courseId }).sort({ createdAt: -1 })
   return {
     materials: materials.map((m) => ({ ...m.toObject(), id: m._id.toString() })),
-  };
+  }
 }
 
-async function addMaterial(professorId, courseId, data) {
-  const course = await Course.findOne({ _id: courseId, professorId });
-  if (!course) throw { status: 404, message: 'Course not found' };
+export async function addMaterial(professorId, courseId, data) {
+  const course = await Course.findOne({ _id: courseId, professorId })
+  if (!course) throw { status: 404, message: 'Course not found' }
 
   const material = await Material.create({
     courseId,
@@ -126,109 +132,109 @@ async function addMaterial(professorId, courseId, data) {
     fileName: data.fileName || null,
     fileUrl: data.fileUrl || null,
     size: data.size || null,
-  });
+  })
 
-  // Notify enrolled students
-  const enrollments = await Enrollment.find({ courseId, status: 'enrolled' });
+  const enrollments = await Enrollment.find({ courseId, status: 'enrolled' })
   const notifications = enrollments.map((e) => ({
     userId: e.studentId,
     type: 'material',
     title: 'New material uploaded',
     body: `${course.code}: "${data.title}" is now available.`,
     link: `/student/courses/${courseId}?tab=materials`,
-  }));
+  }))
   if (notifications.length > 0) {
-    await Notification.insertMany(notifications);
-    const studentIds = enrollments.map((e) => e.studentId);
-    const students = await User.find({ _id: { $in: studentIds } }).select('personalEmail email');
+    await Notification.insertMany(notifications)
+    const studentIds = enrollments.map((e) => e.studentId)
+    const students = await User.find({ _id: { $in: studentIds } }).select('personalEmail email')
     students.forEach((s) => {
       sendNotificationEmail({
         to: s.personalEmail || s.email,
         subject: 'New material uploaded',
         body: `${course.code}: "${data.title}" is now available.`,
         link: `/student/courses/${courseId}?tab=materials`,
-      });
-    });
+      })
+    })
   }
 
-  return { ...material.toObject(), id: material._id.toString() };
+  return { ...material.toObject(), id: material._id.toString() }
 }
 
-async function deleteMaterial(professorId, courseId, materialId) {
-  const course = await Course.findOne({ _id: courseId, professorId });
-  if (!course) throw { status: 404, message: 'Course not found' };
+export async function deleteMaterial(professorId, courseId, materialId) {
+  const course = await Course.findOne({ _id: courseId, professorId })
+  if (!course) throw { status: 404, message: 'Course not found' }
 
-  const material = await Material.findOne({ _id: materialId, courseId });
-  if (!material) throw { status: 404, message: 'Material not found' };
+  const material = await Material.findOne({ _id: materialId, courseId })
+  if (!material) throw { status: 404, message: 'Material not found' }
 
-  await material.deleteOne();
-  return { message: 'Material deleted' };
+  await material.deleteOne()
+  return { message: 'Material deleted' }
 }
 
 // ---- Announcements ----
-async function getAnnouncements(professorId) {
-  const courseIds = await getMyCourseIds(professorId);
-  return Announcement.find({ courseId: { $in: courseIds } }).sort({ createdAt: -1 });
+export async function getAnnouncements(professorId) {
+  const courseIds = await getMyCourseIds(professorId)
+  return Announcement.find({ courseId: { $in: courseIds } }).sort({ createdAt: -1 })
 }
 
-async function getCourseAnnouncements(professorId, courseId) {
-  const course = await Course.findOne({ _id: courseId, professorId });
-  if (!course) throw { status: 404, message: 'Course not found' };
-  return Announcement.find({ courseId }).sort({ createdAt: -1 });
+export async function getCourseAnnouncements(professorId, courseId) {
+  const course = await Course.findOne({ _id: courseId, professorId })
+  if (!course) throw { status: 404, message: 'Course not found' }
+  return Announcement.find({ courseId }).sort({ createdAt: -1 })
 }
 
-async function addAnnouncement(professorId, courseId, data) {
-  const course = await Course.findOne({ _id: courseId, professorId });
-  if (!course) throw { status: 404, message: 'Course not found' };
+export async function addAnnouncement(professorId, courseId, data) {
+  const course = await Course.findOne({ _id: courseId, professorId })
+  if (!course) throw { status: 404, message: 'Course not found' }
 
   const announcement = await Announcement.create({
+    scope: 'course',
     courseId,
-    postedByProfessorId: professorId,
+    authorId: professorId,
     title: data.title,
-    message: data.body || data.message,
-  });
+    body: data.body || data.message,
+  })
 
-  const enrollments = await Enrollment.find({ courseId, status: 'enrolled' });
+  const enrollments = await Enrollment.find({ courseId, status: 'enrolled' })
   const notifications = enrollments.map((e) => ({
     userId: e.studentId,
     type: 'announcement',
     title: 'Course announcement',
     body: `${course.code}: ${data.title}`,
     link: `/student/courses/${courseId}?tab=announcements`,
-  }));
+  }))
   if (notifications.length > 0) {
-    await Notification.insertMany(notifications);
-    const studentIds = enrollments.map((e) => e.studentId);
-    const students = await User.find({ _id: { $in: studentIds } }).select('personalEmail email');
+    await Notification.insertMany(notifications)
+    const studentIds = enrollments.map((e) => e.studentId)
+    const students = await User.find({ _id: { $in: studentIds } }).select('personalEmail email')
     students.forEach((s) => {
       sendNotificationEmail({
         to: s.personalEmail || s.email,
         subject: 'Course announcement',
         body: `${course.code}: ${data.title}`,
         link: `/student/courses/${courseId}?tab=announcements`,
-      });
-    });
+      })
+    })
   }
 
-  return announcement;
+  return announcement
 }
 
-async function deleteAnnouncement(professorId, announcementId) {
-  const announcement = await Announcement.findOne({ _id: announcementId, postedByProfessorId: professorId });
-  if (!announcement) throw { status: 404, message: 'Announcement not found' };
-  await announcement.deleteOne();
-  return { message: 'Deleted' };
+export async function deleteAnnouncement(professorId, announcementId) {
+  const announcement = await Announcement.findOne({ _id: announcementId, authorId: professorId })
+  if (!announcement) throw { status: 404, message: 'Announcement not found' }
+  await announcement.deleteOne()
+  return { message: 'Deleted' }
 }
 
 // ---- Assignments ----
-async function getAssignments(professorId) {
-  const courseIds = await getMyCourseIds(professorId);
-  const assignments = await Assignment.find({ courseId: { $in: courseIds } }).sort({ deadline: -1 });
-  const assignmentIds = assignments.map((a) => a._id);
-  const submissions = await Submission.find({ assignmentId: { $in: assignmentIds } });
+export async function getAssignments(professorId) {
+  const courseIds = await getMyCourseIds(professorId)
+  const assignments = await Assignment.find({ courseId: { $in: courseIds } }).sort({ deadline: -1 })
+  const assignmentIds = assignments.map((a) => a._id)
+  const submissions = await Submission.find({ assignmentId: { $in: assignmentIds } })
 
   return assignments.map((a) => {
-    const subs = submissions.filter((s) => s.assignmentId.toString() === a._id.toString());
+    const subs = submissions.filter((s) => s.assignmentId.toString() === a._id.toString())
     return {
       ...a.toObject(),
       id: a._id.toString(),
@@ -236,24 +242,24 @@ async function getAssignments(professorId) {
       maxScore: 100,
       submittedCount: subs.length,
       gradedCount: subs.filter((s) => s.grade != null).length,
-    };
-  });
+    }
+  })
 }
 
-async function getCourseAssignments(professorId, courseId) {
-  const course = await Course.findOne({ _id: courseId, professorId });
-  if (!course) throw { status: 404, message: 'Course not found' };
-  const assignments = await Assignment.find({ courseId }).sort({ deadline: -1 });
+export async function getCourseAssignments(professorId, courseId) {
+  const course = await Course.findOne({ _id: courseId, professorId })
+  if (!course) throw { status: 404, message: 'Course not found' }
+  const assignments = await Assignment.find({ courseId }).sort({ deadline: -1 })
   return assignments.map((a) => ({
     ...a.toObject(), id: a._id.toString(),
     dueDate: a.deadline,
     maxScore: 100,
-  }));
+  }))
 }
 
-async function addAssignment(professorId, courseId, data) {
-  const course = await Course.findOne({ _id: courseId, professorId });
-  if (!course) throw { status: 404, message: 'Course not found' };
+export async function addAssignment(professorId, courseId, data) {
+  const course = await Course.findOne({ _id: courseId, professorId })
+  if (!course) throw { status: 404, message: 'Course not found' }
 
   const assignment = await Assignment.create({
     courseId,
@@ -261,54 +267,54 @@ async function addAssignment(professorId, courseId, data) {
     description: data.description || '',
     deadline: data.dueDate || data.deadline,
     attachedFileUrl: data.attachment || null,
-  });
+  })
 
-  const enrollments = await Enrollment.find({ courseId, status: 'enrolled' });
+  const enrollments = await Enrollment.find({ courseId, status: 'enrolled' })
   const notifications = enrollments.map((e) => ({
     userId: e.studentId,
     type: 'assignment',
     title: 'New assignment posted',
     body: `${course.code}: "${data.title}" is due ${assignment.deadline.toISOString().slice(0, 10)}.`,
-    link: `/student/assignments`,
-  }));
+    link: '/student/assignments',
+  }))
   if (notifications.length > 0) {
-    await Notification.insertMany(notifications);
-    const studentIds = enrollments.map((e) => e.studentId);
-    const students = await User.find({ _id: { $in: studentIds } }).select('personalEmail email');
+    await Notification.insertMany(notifications)
+    const studentIds = enrollments.map((e) => e.studentId)
+    const students = await User.find({ _id: { $in: studentIds } }).select('personalEmail email')
     students.forEach((s) => {
       sendNotificationEmail({
         to: s.personalEmail || s.email,
         subject: 'New assignment posted',
         body: `${course.code}: "${data.title}" is due ${assignment.deadline.toISOString().slice(0, 10)}.`,
-        link: `/student/assignments`,
-      });
-    });
+        link: '/student/assignments',
+      })
+    })
   }
 
-  return assignment;
+  return assignment
 }
 
-async function deleteAssignment(professorId, assignmentId) {
-  const assignment = await Assignment.findById(assignmentId);
-  if (!assignment) throw { status: 404, message: 'Assignment not found' };
+export async function deleteAssignment(professorId, assignmentId) {
+  const assignment = await Assignment.findById(assignmentId)
+  if (!assignment) throw { status: 404, message: 'Assignment not found' }
 
-  const course = await Course.findOne({ _id: assignment.courseId, professorId });
-  if (!course) throw { status: 403, message: 'Not authorized' };
+  const course = await Course.findOne({ _id: assignment.courseId, professorId })
+  if (!course) throw { status: 403, message: 'Not authorized' }
 
-  await Submission.deleteMany({ assignmentId });
-  await assignment.deleteOne();
-  return { message: 'Deleted' };
+  await Submission.deleteMany({ assignmentId })
+  await assignment.deleteOne()
+  return { message: 'Deleted' }
 }
 
 // ---- Submissions ----
-async function getSubmissions(professorId) {
-  const courseIds = await getMyCourseIds(professorId);
-  const assignments = await Assignment.find({ courseId: { $in: courseIds } });
-  const assignmentIds = assignments.map((a) => a._id);
-  const submissions = await Submission.find({ assignmentId: { $in: assignmentIds } });
+export async function getSubmissions(professorId) {
+  const courseIds = await getMyCourseIds(professorId)
+  const assignments = await Assignment.find({ courseId: { $in: courseIds } })
+  const assignmentIds = assignments.map((a) => a._id)
+  const submissions = await Submission.find({ assignmentId: { $in: assignmentIds } })
 
-  const asgMap = {};
-  assignments.forEach((a) => { asgMap[a._id.toString()] = a; });
+  const asgMap = {}
+  assignments.forEach((a) => { asgMap[a._id.toString()] = a })
 
   return submissions.map((s) => ({
     id: s._id.toString(),
@@ -319,55 +325,55 @@ async function getSubmissions(professorId) {
     score: s.grade ? Number(s.grade) : null,
     feedback: s.feedback,
     status: s.grade != null ? 'graded' : 'submitted',
-    maxScore: asgMap[s.assignmentId.toString()] ? 100 : 100,
-  }));
+    maxScore: 100,
+  }))
 }
 
-async function gradeSubmission(professorId, submissionId, score, feedback) {
-  const submission = await Submission.findById(submissionId).populate('assignmentId');
-  if (!submission) throw { status: 404, message: 'Submission not found' };
-  if (!submission.assignmentId) throw { status: 400, message: 'Orphaned submission' };
+export async function gradeSubmission(professorId, submissionId, score, feedback) {
+  const submission = await Submission.findById(submissionId).populate('assignmentId')
+  if (!submission) throw { status: 404, message: 'Submission not found' }
+  if (!submission.assignmentId) throw { status: 400, message: 'Orphaned submission' }
 
-  const course = await Course.findOne({ _id: submission.assignmentId.courseId, professorId });
-  if (!course) throw { status: 403, message: 'Not authorized' };
+  const course = await Course.findOne({ _id: submission.assignmentId.courseId, professorId })
+  if (!course) throw { status: 403, message: 'Not authorized' }
 
-  submission.grade = String(score);
-  submission.feedback = feedback || '';
-  await submission.save();
+  submission.grade = String(score)
+  submission.feedback = feedback || ''
+  await submission.save()
 
-  const submissionNotif = await Notification.create({
+  await Notification.create({
     userId: submission.studentId,
     type: 'grade',
     title: 'New grade posted',
     body: `Your grade for "${submission.assignmentId.title}" is available: ${score}/100.`,
     link: '/student/grades',
-  });
+  })
 
-  const student = await User.findById(submission.studentId).select('personalEmail email');
+  const student = await User.findById(submission.studentId).select('personalEmail email')
   if (student) {
     sendNotificationEmail({
       to: student.personalEmail || student.email,
-      subject: submissionNotif.title,
-      body: submissionNotif.body,
-      link: submissionNotif.link,
-    });
+      subject: 'New grade posted',
+      body: `Your grade for "${submission.assignmentId.title}" is available: ${score}/100.`,
+      link: '/student/grades',
+    })
   }
 
-  return submission;
+  return submission
 }
 
 // ---- Final Grades ----
-async function getCourseGrades(professorId, courseId) {
-  const course = await Course.findOne({ _id: courseId, professorId });
-  if (!course) throw { status: 404, message: 'Course not found' };
+export async function getCourseGrades(professorId, courseId) {
+  const course = await Course.findOne({ _id: courseId, professorId })
+  if (!course) throw { status: 404, message: 'Course not found' }
 
-  const enrollments = await Enrollment.find({ courseId, status: 'enrolled' });
-  const studentIds = enrollments.map((e) => e.studentId);
-  const students = await User.find({ _id: { $in: studentIds } }).select('-password');
-  const grades = await Grade.find({ courseId });
+  const enrollments = await Enrollment.find({ courseId, status: 'enrolled' })
+  const studentIds = enrollments.map((e) => e.studentId)
+  const students = await User.find({ _id: { $in: studentIds } }).select('-password')
+  const grades = await Grade.find({ courseId })
 
-  const gradeMap = {};
-  grades.forEach((g) => { gradeMap[g.studentId.toString()] = g; });
+  const gradeMap = {}
+  grades.forEach((g) => { gradeMap[g.studentId.toString()] = g })
 
   return {
     course: { ...course.toObject(), id: course._id.toString() },
@@ -382,67 +388,67 @@ async function getCourseGrades(professorId, courseId) {
         status: gradeMap[s._id.toString()].status,
       } : null,
     })),
-  };
+  }
 }
 
-async function setFinalGrade(professorId, courseId, studentId, score) {
-  const course = await Course.findOne({ _id: courseId, professorId });
-  if (!course) throw { status: 404, message: 'Course not found' };
+export async function setFinalGrade(professorId, courseId, studentId, score) {
+  const course = await Course.findOne({ _id: courseId, professorId })
+  if (!course) throw { status: 404, message: 'Course not found' }
 
-  const enrollment = await Enrollment.findOne({ courseId, studentId, status: 'enrolled' });
-  if (!enrollment) throw { status: 400, message: 'Student not enrolled in this course' };
+  const enrollment = await Enrollment.findOne({ courseId, studentId, status: 'enrolled' })
+  if (!enrollment) throw { status: 400, message: 'Student not enrolled in this course' }
 
-  const letter = scoreToLetter(Number(score));
-  const points = scoreToPoints(Number(score));
+  const letter = scoreToLetter(Number(score))
+  const points = scoreToPoints(Number(score))
 
-  let grade = await Grade.findOne({ studentId, courseId });
+  let grade = await Grade.findOne({ studentId, courseId })
   if (!grade) {
-    grade = await Grade.create({ studentId, courseId, score: Number(score), letter, points, status: 'final' });
+    grade = await Grade.create({ studentId, courseId, score: Number(score), letter, points, status: 'final' })
   } else {
-    grade.score = Number(score);
-    grade.letter = letter;
-    grade.points = points;
-    grade.status = 'final';
-    await grade.save();
+    grade.score = Number(score)
+    grade.letter = letter
+    grade.points = points
+    grade.status = 'final'
+    await grade.save()
   }
 
-  const finalGradeNotif = await Notification.create({
+  await Notification.create({
     userId: studentId,
     type: 'grade',
     title: 'Final grade posted',
     body: `Your final grade for ${course.code} is ${letter} (${score}%).`,
     link: '/student/grades',
-  });
+  })
 
-  const student = await User.findById(studentId).select('personalEmail email');
+  const student = await User.findById(studentId).select('personalEmail email')
   if (student) {
     sendNotificationEmail({
       to: student.personalEmail || student.email,
-      subject: finalGradeNotif.title,
-      body: finalGradeNotif.body,
-      link: finalGradeNotif.link,
-    });
+      subject: 'Final grade posted',
+      body: `Your final grade for ${course.code} is ${letter} (${score}%).`,
+      link: '/student/grades',
+    })
   }
 
-  return grade;
+  return grade
 }
 
 // ---- Attendance ----
-async function getAllAttendance(professorId) {
-  const courseIds = await getMyCourseIds(professorId);
-  return Attendance.find({ courseId: { $in: courseIds } }).sort({ sessionDate: -1 });
+export async function getAllAttendance(professorId) {
+  const courseIds = await getMyCourseIds(professorId)
+  return Attendance.find({ courseId: { $in: courseIds } }).sort({ sessionDate: -1 })
 }
 
-async function getCourseAttendance(professorId, courseId) {
-  const course = await Course.findOne({ _id: courseId, professorId });
-  if (!course) throw { status: 404, message: 'Course not found' };
+export async function getCourseAttendance(professorId, courseId) {
+  const course = await Course.findOne({ _id: courseId, professorId })
+  if (!course) throw { status: 404, message: 'Course not found' }
 
-  return Attendance.find({ courseId }).sort({ sessionDate: -1 });
+  return Attendance.find({ courseId }).sort({ sessionDate: -1 })
 }
 
-async function saveAttendance(professorId, courseId, data) {
-  const course = await Course.findOne({ _id: courseId, professorId });
-  if (!course) throw { status: 404, message: 'Course not found' };
+export async function saveAttendance(professorId, courseId, data) {
+  const course = await Course.findOne({ _id: courseId, professorId })
+  if (!course) throw { status: 404, message: 'Course not found' }
 
   const attendance = await Attendance.create({
     courseId,
@@ -452,49 +458,37 @@ async function saveAttendance(professorId, courseId, data) {
       studentId: r.studentId,
       status: r.present ? 'present' : 'absent',
     })),
-  });
+  })
 
-  return attendance;
+  return attendance
 }
 
 // ---- Users (helper) ----
-async function getUsers() {
-  const users = await User.find().select('-password');
-  return users.map((u) => ({ ...u.toObject(), id: u._id.toString() }));
+export async function getUsers() {
+  const users = await User.find().select('-password')
+  return users.map((u) => ({ ...u.toObject(), id: u._id.toString() }))
 }
 
 // ---- Enrollments (helper) ----
-async function getEnrollments() {
-  const enrollments = await Enrollment.find({ status: 'enrolled' });
-  return enrollments.map((e) => ({ ...e.toObject(), id: e._id.toString() }));
+export async function getEnrollments() {
+  const enrollments = await Enrollment.find({ status: 'enrolled' })
+  return enrollments.map((e) => ({ ...e.toObject(), id: e._id.toString() }))
 }
 
 // ---- Notifications ----
-async function getNotifications(professorId) {
-  return Notification.find({ userId: professorId }).sort({ createdAt: -1 });
+export async function getNotifications(professorId) {
+  return Notification.find({ userId: professorId }).sort({ createdAt: -1 })
 }
 
-async function markNotificationRead(notificationId, userId) {
-  const notification = await Notification.findOne({ _id: notificationId, userId });
-  if (!notification) throw { status: 404, message: 'Notification not found' };
-  notification.read = true;
-  await notification.save();
-  return notification;
+export async function markNotificationRead(notificationId, userId) {
+  const notification = await Notification.findOne({ _id: notificationId, userId })
+  if (!notification) throw { status: 404, message: 'Notification not found' }
+  notification.read = true
+  await notification.save()
+  return notification
 }
 
-async function markAllNotificationsRead(userId) {
-  await Notification.updateMany({ userId, read: false }, { read: true });
-  return { message: 'All notifications marked as read' };
+export async function markAllNotificationsRead(userId) {
+  await Notification.updateMany({ userId, read: false }, { read: true })
+  return { message: 'All notifications marked as read' }
 }
-
-module.exports = {
-  getDashboard, getCourses, getCourseDetail,
-  getMaterials, addMaterial, deleteMaterial,
-  getAnnouncements, getCourseAnnouncements, addAnnouncement, deleteAnnouncement,
-  getAssignments, getCourseAssignments, addAssignment, deleteAssignment,
-  getSubmissions, gradeSubmission,
-  getCourseGrades, setFinalGrade,
-  getAllAttendance, getCourseAttendance, saveAttendance,
-  getUsers, getEnrollments,
-  getNotifications, markNotificationRead, markAllNotificationsRead,
-};

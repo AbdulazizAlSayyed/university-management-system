@@ -1,30 +1,18 @@
-const mongoose = require('mongoose');
-const { Schema } = mongoose;
+import mongoose from 'mongoose'
+const { Schema } = mongoose
 
-const assignmentSchema = new Schema({
-  courseId: {
-    type: Schema.Types.ObjectId,
-    ref: 'Course',
-    required: [true, 'Course is required']
+const assignmentSchema = new Schema(
+  {
+    courseId: { type: Schema.Types.ObjectId, ref: 'Course', required: true },
+    title: { type: String, required: true, trim: true },
+    description: { type: String, trim: true },
+    deadline: { type: Date, required: true },
+    maxScore: { type: Number, default: 100 },
+    attachedFileUrl: String,
   },
-  title: {
-    type: String,
-    required: [true, 'Title is required'],
-    trim: true
-  },
-  description: {
-    type: String,
-    trim: true
-  },
-  deadline: {
-    type: Date,
-    required: [true, 'Deadline is required']
-  },
-  attachedFileUrl: {
-    type: String
-  }
-}, {
-  timestamps: { createdAt: true, updatedAt: false }
-});
+  { timestamps: { createdAt: true, updatedAt: false } }
+)
 
-module.exports = mongoose.model('Assignment', assignmentSchema);
+assignmentSchema.index({ courseId: 1 })
+
+export default mongoose.model('Assignment', assignmentSchema)

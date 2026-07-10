@@ -1,8 +1,7 @@
-import { useState } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Megaphone, Plus, Trash2, Pin, Globe } from 'lucide-react'
-import { useData } from '../../context/DataContext'
+import * as adminApi from '../../api/admin'
 import { useToast } from '../../context/ToastContext'
-import { useAuth } from '../../context/AuthContext'
 import {
   PageHeader, Card, Button, IconButton, Badge, Modal, FormField, Input, Textarea, EmptyState,
 } from '../../components/ui'
@@ -10,26 +9,55 @@ import { formatDate, timeAgo } from '../../utils/helpers'
 
 export default function AdminAnnouncements() {
   const { toast } = useToast()
-  const [items, setItems] = useState([])
+  const [announcements, setAnnouncements] = useState([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
-  const [search, setSearch] = useState('')
   const [form, setForm] = useState({ title: '', body: '', pinned: false })
+  const [saving, setSaving] = useState(false)
 
-  const systemAnns = announcements
-    .filter((a) => a.scope === 'system')
-    .sort((a, b) => (b.pinned - a.pinned) || new Date(b.createdAt) - new Date(a.createdAt))
+  const load = async () => {
+    setLoading(true)
+    try {
+      const res = await adminApi.listAnnouncements()
+      setAnnouncements(Array.isArray(res) ? res : res.announcements || [])
+    } catch { /* ignore */ }
+    setLoading(false)
+  }
+
+  useEffect(() => { load() }, [])
+
+  const systemAnns = useMemo(() =>
+    announcements
+      .filter((a) => a.scope === 'system')
+      .sort((a, b) => (b.pinned - a.pinned) || new Date(b.createdAt) - new Date(a.createdAt)),
+    [announcements]
+  )
 
   const submit = async (e) => {
     e.preventDefault()
     if (!form.title || !form.body) return toast('Please enter a title and message.', 'error')
     setSaving(true)
-    try { await adminApi.createAnnouncement(form); toast('Announcement posted to all users.', 'success'); setForm({ title: '', body: '', pinned: false }); setModalOpen(false); load() }
-    catch (er) { toast(adminApi.errMsg(er), 'error') } finally { setSaving(false) }
+    try {
+      await adminApi.createAnnouncement({ ...form, scope: 'system' })
+      toast('Announcement posted to all users.', 'success')
+      setForm({ title: '', body: '', pinned: false })
+      setModalOpen(false)
+      load()
+    } catch (e) {
+      toast(adminApi.errMsg(e), 'error')
+    } finally {
+      setSaving(false)
+    }
   }
+
   const remove = async (id) => {
-    try { await adminApi.deleteAnnouncement(id); toast('Announcement deleted.', 'info'); load() } catch (e) { toast(adminApi.errMsg(e), 'error') }
+    try {
+      await adminApi.deleteAnnouncement(id)
+      toast('Announcement deleted.', 'info')
+      load()
+    } catch (e) {
+      toast(adminApi.errMsg(e), 'error')
+    }
   }
 
   return (
@@ -46,7 +74,7 @@ export default function AdminAnnouncements() {
       ) : (
         <div className="space-y-4">
           {systemAnns.map((a) => (
-            <Card key={a.id} className="p-5">
+            <Card key={a._id || a.id} className="p-5">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-3">
                   <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-600">
@@ -61,7 +89,7 @@ export default function AdminAnnouncements() {
                     <p className="mt-2 text-xs text-slate-400">Posted {formatDate(a.createdAt)} · {timeAgo(a.createdAt)}</p>
                   </div>
                 </div>
-                <IconButton icon={Trash2} title="Delete" onClick={() => { deleteAnnouncement(a.id); toast('Announcement deleted.', 'info') }} className="hover:text-red-600" />
+                <IconButton icon={Trash2} title="Delete" onClick={() => remove(a._id || a.id)} className="hover:text-red-600" />
               </div>
             </Card>
           ))}

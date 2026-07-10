@@ -26,7 +26,7 @@ export default function AdminNotifications() {
   const load = useCallback(async () => {
     try {
       const res = await adminApi.getNotifications()
-      setNotifications(res.notifications || [])
+      setNotifications(Array.isArray(res) ? res : res.notifications || [])
     } catch { /* ignore */ }
   }, [])
 

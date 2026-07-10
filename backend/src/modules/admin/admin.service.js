@@ -1,131 +1,5 @@
-<<<<<<< HEAD
-const bcrypt = require('bcrypt');
-const crypto = require('crypto');
-const User = require('../../models/User');
-const Notification = require('../../models/Notification');
-const { sendCredentialsEmail } = require('../../utils/mailer');
-
-const UNIVERSITY_DOMAIN = process.env.UNIVERSITY_DOMAIN || 'unihub.edu';
-
-function generateTempPassword() {
-  return crypto.randomBytes(6).toString('hex');
-}
-
-function generateUniversityEmail(firstName, lastName, suffix) {
-  const base = `${firstName.toLowerCase()}.${lastName.toLowerCase()}`;
-  const s = suffix ? `${base}${suffix}` : base;
-  return `${s}@${UNIVERSITY_DOMAIN}`;
-}
-
-async function findAvailableEmail(firstName, lastName) {
-  let suffix = 0;
-  let email;
-  do {
-    email = generateUniversityEmail(firstName, lastName, suffix > 0 ? suffix : null);
-    const exists = await User.findOne({ email });
-    if (!exists) return email;
-    suffix++;
-  } while (true);
-}
-
-async function listUsers(statusFilter) {
-  const query = statusFilter ? { status: statusFilter } : {};
-  return User.find(query).sort({ createdAt: -1 });
-}
-
-async function provisionUser({ userId, universityEmail, extraFields = {} }) {
-  const user = userId
-    ? await User.findById(userId)
-    : null;
-
-  if (userId && !user) {
-    throw { status: 404, message: 'Request not found' };
-  }
-
-  const target = user || new User({ ...extraFields });
-
-  const email = universityEmail || await findAvailableEmail(target.firstName, target.lastName);
-
-  const emailTaken = await User.findOne({ email, _id: { $ne: userId } });
-  if (emailTaken) {
-    throw { status: 400, message: 'That university email is already in use' };
-  }
-
-  const tempPassword = generateTempPassword();
-  const hashedPassword = await bcrypt.hash(tempPassword, 10);
-
-  Object.assign(target, extraFields, {
-    email,
-    password: hashedPassword,
-    status: 'active'
-  });
-
-  await target.save();
-
-  await sendCredentialsEmail({
-    to: target.personalEmail,
-    firstName: target.firstName,
-    universityEmail: email,
-    password: tempPassword,
-    role: target.role
-  });
-
-  await Notification.create({
-    userId: target._id,
-    type: 'activation',
-    title: 'Account activated',
-    body: `Your ${target.role} account has been activated. Check your personal email for login credentials.`,
-    link: '/login'
-  });
-
-  return { user: target, tempPassword };
-}
-
-async function setUserStatus(userId, status) {
-  const user = await User.findById(userId);
-  if (!user) throw { status: 404, message: 'User not found' };
-
-  user.status = status;
-  await user.save();
-
-  await Notification.create({
-    userId: user._id,
-    type: status === 'active' ? 'activation' : 'deactivation',
-    title: status === 'active' ? 'Account activated' : 'Account deactivated',
-    body: `Your ${user.role} account has been ${status === 'active' ? 'activated' : 'deactivated'}.`,
-    link: '/login'
-  });
-
-  return user;
-}
-
-async function deleteUser(userId) {
-  const user = await User.findByIdAndDelete(userId);
-  if (!user) throw { status: 404, message: 'User not found' };
-  return user;
-}
-
-// ---- Notifications ----
-
-async function getNotifications(userId) {
-  return Notification.find({ userId }).sort({ createdAt: -1 });
-}
-
-async function markNotificationRead(notificationId, userId) {
-  const notification = await Notification.findOne({ _id: notificationId, userId });
-  if (!notification) throw { status: 404, message: 'Notification not found' };
-  notification.read = true;
-  await notification.save();
-  return notification;
-}
-
-async function markAllNotificationsRead(userId) {
-  await Notification.updateMany({ userId, read: false }, { read: true });
-  return { message: 'All notifications marked as read' };
-}
-
-module.exports = { listUsers, provisionUser, setUserStatus, deleteUser, getNotifications, markNotificationRead, markAllNotificationsRead };
-=======
+import crypto from 'crypto'
+import bcrypt from 'bcryptjs'
 import User from '../../models/User.js'
 import Course from '../../models/Course.js'
 import Enrollment from '../../models/Enrollment.js'
@@ -134,11 +8,35 @@ import Exam from '../../models/Exam.js'
 import Announcement from '../../models/Announcement.js'
 import CalendarEvent from '../../models/CalendarEvent.js'
 import AuditLog from '../../models/AuditLog.js'
+import Notification from '../../models/Notification.js'
 import ApiError from '../../utils/ApiError.js'
 import { logAudit } from '../../utils/audit.js'
-import { notify } from '../../utils/notify.js'
+import { notify, notifyAdmins } from '../../utils/notify.js'
+import { sendCredentialsEmail } from '../../utils/mailer.js'
 
 const name = (u) => (u ? `${u.firstName} ${u.lastName}` : 'unknown')
+const UNIVERSITY_DOMAIN = process.env.UNIVERSITY_DOMAIN || 'unihub.edu'
+
+function generateTempPassword() {
+  return crypto.randomBytes(6).toString('hex')
+}
+
+function generateUniversityEmail(firstName, lastName, suffix) {
+  const base = `${firstName.toLowerCase()}.${lastName.toLowerCase()}`
+  const s = suffix ? `${base}${suffix}` : base
+  return `${s}@${UNIVERSITY_DOMAIN}`
+}
+
+async function findAvailableEmail(firstName, lastName) {
+  let suffix = 0
+  let email
+  do {
+    email = generateUniversityEmail(firstName, lastName, suffix > 0 ? suffix : null)
+    const exists = await User.findOne({ email })
+    if (!exists) return email
+    suffix++
+  } while (true)
+}
 
 // ------------------------------ Dashboard ------------------------------
 export async function getDashboardStats() {
@@ -151,7 +49,7 @@ export async function getDashboardStats() {
   ])
 
   const statusAgg = await User.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }])
-  const statusBreakdown = { active: 0, pending: 0, inactive: 0 }
+  const statusBreakdown = { active: 0, pending: 0, inactive: 0, requested: 0 }
   statusAgg.forEach((s) => { if (s._id) statusBreakdown[s._id] = s.count })
 
   const courses = await Course.find().select('code capacity')
@@ -194,6 +92,7 @@ export async function listUsers({ role, status, search } = {}) {
       { firstName: new RegExp(search, 'i') },
       { lastName: new RegExp(search, 'i') },
       { email: new RegExp(search, 'i') },
+      { personalEmail: new RegExp(search, 'i') },
       { studentId: new RegExp(search, 'i') },
     ]
   }
@@ -241,15 +140,49 @@ export async function deleteUser(id, actorId) {
 }
 
 export async function setUserStatus(id, status, actorId) {
-  if (!['active', 'pending', 'inactive'].includes(status)) throw new ApiError(422, 'Invalid status')
+  if (!['active', 'pending', 'inactive', 'requested'].includes(status)) throw new ApiError(422, 'Invalid status')
   const user = await User.findByIdAndUpdate(id, { status }, { new: true })
   if (!user) throw new ApiError(404, 'User not found')
   const label = status === 'active' ? 'Activated' : status === 'inactive' ? 'Deactivated' : 'Set pending'
   await logAudit(actorId, 'update', 'User', `${label} account "${name(user)}"`)
   if (status === 'active') {
-    await notify(user._id, { type: 'system', title: 'Account activated', body: 'Your account has been activated. Welcome!', link: `/${user.role}/dashboard` })
+    await notify(user._id, { type: 'activation', title: 'Account activated', body: 'Your account has been activated. Welcome!', link: `/${user.role}/dashboard` })
   }
   return user
+}
+
+export async function approveRequest(userId, actorId) {
+  const user = await User.findById(userId)
+  if (!user) throw new ApiError(404, 'Request not found')
+  if (user.status !== 'requested') throw new ApiError(400, 'Account is not in requested status')
+
+  const email = await findAvailableEmail(user.firstName, user.lastName)
+  const tempPassword = generateTempPassword()
+  const hashedPassword = await bcrypt.hash(tempPassword, 10)
+
+  user.email = email
+  user.password = hashedPassword
+  user.status = 'active'
+  await user.save()
+
+  await sendCredentialsEmail({
+    to: user.personalEmail,
+    firstName: user.firstName,
+    universityEmail: email,
+    password: tempPassword,
+    role: user.role,
+  })
+
+  await Notification.create({
+    userId: user._id,
+    type: 'activation',
+    title: 'Account activated',
+    body: `Your ${user.role} account has been activated. Check your personal email for login credentials.`,
+    link: '/login',
+  })
+
+  await logAudit(actorId, 'update', 'User', `Approved and activated account "${name(user)}"`)
+  return { user, tempPassword }
 }
 
 // ------------------------------ Courses ------------------------------
@@ -274,7 +207,6 @@ export async function listCourses() {
   }))
 }
 
-// Strip self-references and de-duplicate the prerequisite list.
 function cleanPrereqs(data, ownId = null) {
   if (!Array.isArray(data.prerequisites)) return data
   const seen = new Set()
@@ -310,7 +242,6 @@ export async function updateCourse(id, data, actorId) {
     .populate('prerequisites', 'code name')
   if (!course) throw new ApiError(404, 'Course not found')
   await logAudit(actorId, 'update', 'Course', `Updated course ${course.code}`)
-  // Capacity may have increased - fill any freed seats from the waitlist.
   await promoteFromWaitlist(course._id)
   return course
 }
@@ -321,7 +252,6 @@ export async function deleteCourse(id, actorId) {
   await Enrollment.deleteMany({ courseId: id })
   await Exam.deleteMany({ courseId: id })
   await Grade.deleteMany({ courseId: id })
-  // Remove this course from other courses' prerequisite lists.
   await Course.updateMany({ prerequisites: id }, { $pull: { prerequisites: id } })
   await logAudit(actorId, 'delete', 'Course', `Deleted course ${course.code}`)
   return course
@@ -341,13 +271,11 @@ export async function getRoster(courseId) {
   }
 }
 
-// True if the student has a final passing grade (not F) in the course.
 async function hasPassed(studentId, courseId) {
   const g = await Grade.findOne({ studentId, courseId, status: 'final' })
   return !!g && !!g.letter && g.letter.toUpperCase() !== 'F'
 }
 
-// Returns the list of prerequisite courses the student has NOT passed yet.
 export async function missingPrerequisites(studentId, course) {
   const missing = []
   for (const prereqId of course.prerequisites || []) {
@@ -359,7 +287,6 @@ export async function missingPrerequisites(studentId, course) {
   return missing
 }
 
-// Move waitlisted students into freed seats (FIFO) and notify them.
 export async function promoteFromWaitlist(courseId) {
   const course = await Course.findById(courseId)
   if (!course) return []
@@ -393,13 +320,11 @@ export async function enrollStudent(studentId, courseId, actorId) {
   if (existing && existing.status === 'enrolled') throw new ApiError(409, 'Student is already enrolled.')
   if (existing && existing.status === 'waitlisted') throw new ApiError(409, 'Student is already on the waitlist.')
 
-  // Prerequisite check: must have a final passing grade in every prerequisite.
   const missing = await missingPrerequisites(studentId, course)
   if (missing.length) {
     throw new ApiError(400, `Missing prerequisite${missing.length > 1 ? 's' : ''}: ${missing.map((m) => m.code).join(', ')}. The student must pass ${missing.length > 1 ? 'these courses' : 'this course'} first.`)
   }
 
-  // Capacity check: full course -> waitlist (FIFO).
   const enrolled = await Enrollment.countDocuments({ courseId, status: 'enrolled' })
   const isFull = enrolled >= course.capacity
   const status = isFull ? 'waitlisted' : 'enrolled'
@@ -431,7 +356,6 @@ export async function dropStudent(studentId, courseId, actorId) {
   const removed = await Enrollment.findOneAndDelete({ studentId, courseId })
   const course = await Course.findById(courseId)
   await logAudit(actorId, 'delete', 'Enrollment', `Removed a student from ${course ? course.code : 'a course'}`)
-  // Freed a seat -> promote the first student on the waitlist.
   if (removed && removed.status === 'enrolled') await promoteFromWaitlist(courseId)
   return getRoster(courseId)
 }
@@ -497,4 +421,21 @@ export async function listAudit({ action, search } = {}) {
   if (search) q.detail = new RegExp(search, 'i')
   return AuditLog.find(q).sort({ createdAt: -1 }).limit(200).populate('actorId', 'firstName lastName')
 }
->>>>>>> Development
+
+// ------------------------------ Notifications ------------------------------
+export async function getNotifications(userId) {
+  return Notification.find({ userId }).sort({ createdAt: -1 })
+}
+
+export async function markNotificationRead(notificationId, userId) {
+  const notification = await Notification.findOne({ _id: notificationId, userId })
+  if (!notification) throw new ApiError(404, 'Notification not found')
+  notification.read = true
+  await notification.save()
+  return notification
+}
+
+export async function markAllNotificationsRead(userId) {
+  await Notification.updateMany({ userId, read: false }, { read: true })
+  return { message: 'All notifications marked as read' }
+}

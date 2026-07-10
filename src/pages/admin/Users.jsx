@@ -1,10 +1,9 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   Users as UsersIcon, Plus, Pencil, Trash2, UserCheck, UserX, Search,
 } from 'lucide-react'
-import { useData } from '../../context/DataContext'
+import * as adminApi from '../../api/admin'
 import { useToast } from '../../context/ToastContext'
-import { adminApi } from '../../api'
 import {
   PageHeader, Card, Button, IconButton, Avatar, StatusBadge, Badge, Modal, ConfirmDialog,
   FormField, Input, Select, SearchInput, EmptyState, LoadingState,
@@ -37,7 +36,7 @@ function UserFormModal({ open, onClose, onSave, initial, saving }) {
       open={open}
       onClose={onClose}
       title={initial ? 'Edit User' : 'Create User'}
-      subtitle={initial ? 'Update account details' : 'New accounts start as “pending” until activated.'}
+      subtitle={initial ? 'Update account details' : 'New accounts start as "pending" until activated.'}
       size="lg"
       footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button onClick={submit}>{initial ? 'Save changes' : 'Create user'}</Button></>}
     >
@@ -79,35 +78,84 @@ function UserFormModal({ open, onClose, onSave, initial, saving }) {
 
 export default function AdminUsers() {
   const { toast } = useToast()
+  const [users, setUsers] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState(null)
   const [confirmDel, setConfirmDel] = useState(null)
+  const [saving, setSaving] = useState(false)
 
-  const filtered = useMemo(() => users.filter((u) => {
-    if (roleFilter !== 'all' && u.role !== roleFilter) return false
-    if (statusFilter !== 'all' && u.status !== statusFilter) return false
-    if (search) {
-      const q = search.toLowerCase()
-      return fullName(u).toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q) || (u.studentId || '').toLowerCase().includes(q)
+  const load = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const params = {}
+      if (roleFilter !== 'all') params.role = roleFilter
+      if (statusFilter !== 'all') params.status = statusFilter
+      const res = await adminApi.listUsers(params)
+      setUsers(Array.isArray(res) ? res : res.users || [])
+    } catch (e) {
+      setError(adminApi.errMsg(e))
+    } finally {
+      setLoading(false)
     }
-    return true
-  }), [users, search, roleFilter, statusFilter])
+  }
+
+  useEffect(() => { load() }, [roleFilter, statusFilter])
+
+  const filtered = useMemo(() => {
+    if (!search) return users
+    const q = search.toLowerCase()
+    return users.filter((u) =>
+      fullName(u).toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q) || (u.studentId || '').toLowerCase().includes(q)
+    )
+  }, [users, search])
 
   const openCreate = () => { setEditing(null); setModalOpen(true) }
   const openEdit = (u) => { setEditing(u); setModalOpen(true) }
 
-  const handleSave = (form) => {
-    if (editing) {
-      updateUser(editing.id, form)
-      toast('User updated.', 'success')
-    } else {
-      addUser(form)
-      toast('User created and set to pending.', 'success')
+  const handleSave = async (form) => {
+    setSaving(true)
+    try {
+      if (editing) {
+        await adminApi.updateUser(editing._id || editing.id, form)
+        toast('User updated.', 'success')
+      } else {
+        await adminApi.createUser(form)
+        toast('User created and set to pending.', 'success')
+      }
+      setModalOpen(false)
+      load()
+    } catch (e) {
+      toast(adminApi.errMsg(e), 'error')
+    } finally {
+      setSaving(false)
     }
-    setModalOpen(false)
+  }
+
+  const handleDelete = async () => {
+    try {
+      await adminApi.deleteUser(confirmDel._id || confirmDel.id)
+      toast('User deleted.', 'info')
+      setConfirmDel(null)
+      load()
+    } catch (e) {
+      toast(adminApi.errMsg(e), 'error')
+    }
+  }
+
+  const handleSetStatus = async (id, status) => {
+    try {
+      await adminApi.setUserStatus(id, status)
+      toast(status === 'active' ? 'User activated.' : 'User deactivated.', status === 'active' ? 'success' : 'info')
+      load()
+    } catch (e) {
+      toast(adminApi.errMsg(e), 'error')
+    }
   }
 
   const roleTone = { admin: 'brand', professor: 'emerald', student: 'violet' }
@@ -138,7 +186,8 @@ export default function AdminUsers() {
         </div>
       </Card>
 
-      {/* Table */}
+      {error && <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</p>}
+
       <Card className="overflow-hidden">
         {filtered.length === 0 ? (
           <EmptyState icon={Search} title="No users found" message="Try adjusting your search or filters." />
@@ -157,7 +206,7 @@ export default function AdminUsers() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filtered.map((u) => (
-                  <tr key={u.id} className="transition hover:bg-slate-50/60">
+                  <tr key={u._id || u.id} className="transition hover:bg-slate-50/60">
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-3">
                         <Avatar user={u} size="sm" />
@@ -176,9 +225,9 @@ export default function AdminUsers() {
                     <td className="px-5 py-3">
                       <div className="flex items-center justify-end gap-1">
                         {u.status === 'active' ? (
-                          <IconButton icon={UserX} title="Deactivate" onClick={() => { setUserStatus(u.id, 'inactive'); toast(`${fullName(u)} deactivated.`, 'info') }} className="hover:text-amber-600" />
+                          <IconButton icon={UserX} title="Deactivate" onClick={() => handleSetStatus(u._id || u.id, 'inactive')} className="hover:text-amber-600" />
                         ) : (
-                          <IconButton icon={UserCheck} title="Activate" onClick={() => { setUserStatus(u.id, 'active'); toast(`${fullName(u)} activated.`, 'success') }} className="hover:text-emerald-600" />
+                          <IconButton icon={UserCheck} title="Activate" onClick={() => handleSetStatus(u._id || u.id, 'active')} className="hover:text-emerald-600" />
                         )}
                         <IconButton icon={Pencil} title="Edit" onClick={() => openEdit(u)} className="hover:text-brand-600" />
                         <IconButton icon={Trash2} title="Delete" onClick={() => setConfirmDel(u)} className="hover:text-red-600" />
@@ -200,13 +249,14 @@ export default function AdminUsers() {
           onClose={() => setModalOpen(false)}
           onSave={handleSave}
           initial={editing}
+          saving={saving}
         />
       )}
 
       <ConfirmDialog
         open={!!confirmDel}
         onClose={() => setConfirmDel(null)}
-        onConfirm={() => { deleteUser(confirmDel.id); toast('User deleted.', 'info') }}
+        onConfirm={handleDelete}
         title="Delete user?"
         message={confirmDel ? `This will permanently remove ${fullName(confirmDel)} and their enrollments. This cannot be undone.` : ''}
         confirmLabel="Delete"

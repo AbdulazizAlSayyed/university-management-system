@@ -1,28 +1,30 @@
-const express = require('express');
-const router = express.Router();
-const verifyToken = require('../../middleware/auth.middleware');
-const authorize = require('../../middleware/role.middleware');
-const controller = require('./student.controller');
+import { Router } from 'express'
+import { verifyToken } from '../../middleware/auth.middleware.js'
+import { authorize } from '../../middleware/role.middleware.js'
+import * as c from './student.controller.js'
 
-router.use(verifyToken, authorize('student'));
+const router = Router()
 
-router.get('/dashboard', controller.getDashboard);
-router.get('/courses', controller.getCatalog);
-router.post('/enrollments', controller.enroll);
-router.delete('/enrollments/:courseId', controller.drop);
-router.get('/my-courses', controller.getMyCourses);
-router.get('/courses/:courseId/classroom', controller.getClassroom);
-router.get('/assignments', controller.getAssignments);
-router.post('/submissions', controller.submitAssignment);
-router.get('/grades', controller.getGrades);
-router.post('/courses/:courseId/calculate-grade', controller.calculateGrade);
-router.get('/transcript', controller.getTranscript);
-router.get('/exams', controller.getExams);
-router.get('/notifications', controller.getNotifications);
-router.patch('/notifications/:id/read', controller.markNotificationRead);
-router.patch('/notifications/read-all', controller.markAllNotificationsRead);
-router.get('/users', controller.getUsers);
-router.get('/all-courses', controller.getAllCourses);
-router.get('/enrollments', controller.getEnrollments);
+router.use(verifyToken, authorize('student'))
 
-module.exports = router;
+router.get('/dashboard', c.getDashboard)
+router.get('/courses', c.getCatalog)
+router.post('/enrollments', c.enroll)
+router.delete('/enrollments/:courseId', c.drop)
+router.get('/my-courses', c.getMyCourses)
+router.get('/courses/:courseId/classroom', c.getClassroom)
+router.get('/assignments', c.getAssignments)
+router.post('/submissions', c.submitAssignment)
+router.get('/grades', c.getGrades)
+router.post('/courses/:courseId/calculate-grade', c.calculateGrade)
+router.get('/transcript', c.getTranscript)
+router.get('/exams', c.getExams)
+router.get('/notifications', c.getNotifications)
+router.patch('/notifications/:id/read', c.markNotificationRead)
+router.patch('/notifications/read-all', c.markAllNotificationsRead)
+router.get('/users', c.getUsers)
+router.get('/init', c.init)
+router.get('/all-courses', c.getAllCourses)
+router.get('/enrollments', c.getEnrollments)
+
+export default router

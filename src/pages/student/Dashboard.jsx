@@ -11,7 +11,7 @@ import CourseCard from '../../components/CourseCard'
 import { fullName, formatDate, timeAgo, daysUntil, calculateGPA, classNames } from '../../utils/helpers'
 
 export default function StudentDashboard() {
-  const { loading, courses, users, enrollments, assignments, grades, exams, announcements, notifications } = useStudentData()
+  const { loading, loaded, courses, users, enrollments, assignments, grades, exams, announcements, notifications } = useStudentData()
   const { currentUser } = useAuth()
   const navigate = useNavigate()
 
@@ -43,7 +43,7 @@ export default function StudentDashboard() {
 
   const myNotifs = notifications.slice(0, 4)
 
-  if (loading) return <LoadingState />
+  if (!loaded && loading) return <LoadingState />
 
   return (
     <div>

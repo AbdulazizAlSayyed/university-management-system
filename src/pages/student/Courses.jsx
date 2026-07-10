@@ -8,7 +8,7 @@ import CourseCard from '../../components/CourseCard'
 import { fullName } from '../../utils/helpers'
 
 export default function StudentCourses() {
-  const { loading, courses, users, enrollments } = useStudentData()
+  const { loading, loaded, courses, users, enrollments } = useStudentData()
   const { currentUser } = useAuth()
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
@@ -19,7 +19,7 @@ export default function StudentCourses() {
   const q = search.toLowerCase()
   const filtered = myCourses.filter((c) => !q || c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q))
 
-  if (loading) return <LoadingState />
+  if (!loaded && loading) return <LoadingState />
 
   return (
     <div>

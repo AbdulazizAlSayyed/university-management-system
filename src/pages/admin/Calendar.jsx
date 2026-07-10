@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { CalendarDays, Plus, Trash2, GraduationCap, Flag, FileClock, PartyPopper } from 'lucide-react'
-import { useData } from '../../context/DataContext'
+import * as adminApi from '../../api/admin'
 import { useToast } from '../../context/ToastContext'
 import {
   PageHeader, Card, CardHeader, Button, IconButton, Badge, Modal, FormField,
@@ -19,24 +19,48 @@ export default function AdminCalendar() {
   const { toast } = useToast()
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
-  const [search, setSearch] = useState('')
-  const [typeFilter, setTypeFilter] = useState('all')
   const [form, setForm] = useState({ title: '', date: '', type: 'deadline' })
   const [saving, setSaving] = useState(false)
 
-  const sorted = [...calendarEvents].sort((a, b) => new Date(a.date) - new Date(b.date))
+  const load = async () => {
+    setLoading(true)
+    try {
+      const res = await adminApi.listCalendar()
+      setEvents(Array.isArray(res) ? res : res.events || [])
+    } catch { /* ignore */ }
+    setLoading(false)
+  }
+
+  useEffect(() => { load() }, [])
+
+  const sorted = useMemo(() => [...events].sort((a, b) => new Date(a.date) - new Date(b.date)), [events])
 
   const submit = async (e) => {
     e.preventDefault()
     if (!form.title || !form.date) return toast('Please enter a title and date.', 'error')
     setSaving(true)
-    try { await adminApi.createEvent(form); toast('Calendar event added.', 'success'); setForm({ title: '', date: '', type: 'deadline' }); setModalOpen(false); load() }
-    catch (er) { toast(adminApi.errMsg(er), 'error') } finally { setSaving(false) }
+    try {
+      await adminApi.createEvent(form)
+      toast('Calendar event added.', 'success')
+      setForm({ title: '', date: '', type: 'deadline' })
+      setModalOpen(false)
+      load()
+    } catch (e) {
+      toast(adminApi.errMsg(e), 'error')
+    } finally {
+      setSaving(false)
+    }
   }
+
   const remove = async (id) => {
-    try { await adminApi.deleteEvent(id); toast('Event removed.', 'info'); load() } catch (e) { toast(adminApi.errMsg(e), 'error') }
+    try {
+      await adminApi.deleteEvent(id)
+      toast('Event removed.', 'info')
+      load()
+    } catch (e) {
+      toast(adminApi.errMsg(e), 'error')
+    }
   }
 
   return (
@@ -59,7 +83,7 @@ export default function AdminCalendar() {
               const Icon = meta.icon
               const dLeft = daysUntil(ev.date)
               return (
-                <li key={ev.id} className="group flex items-center gap-4 rounded-lg px-2 py-2.5 transition hover:bg-slate-50">
+                <li key={ev._id || ev.id} className="group flex items-center gap-4 rounded-lg px-2 py-2.5 transition hover:bg-slate-50">
                   <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${meta.bg}`}>
                     <Icon size={20} className={meta.fg} />
                   </span>
@@ -73,7 +97,7 @@ export default function AdminCalendar() {
                       {dLeft === 0 ? 'Today' : `in ${dLeft}d`}
                     </span>
                   )}
-                  <IconButton icon={Trash2} title="Remove" onClick={() => { deleteCalendarEvent(ev.id); toast('Event removed.', 'info') }} className="opacity-0 transition group-hover:opacity-100 hover:text-red-600" />
+                  <IconButton icon={Trash2} title="Remove" onClick={() => remove(ev._id || ev.id)} className="opacity-0 transition group-hover:opacity-100 hover:text-red-600" />
                 </li>
               )
             })}
@@ -85,7 +109,7 @@ export default function AdminCalendar() {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         title="Add Calendar Event"
-        footer={<><Button variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button><Button onClick={submit}>Add event</Button></>}
+        footer={<><Button variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button><Button onClick={submit} disabled={saving}>{saving ? 'Adding...' : 'Add event'}</Button></>}
       >
         <form onSubmit={submit} className="space-y-4">
           <FormField label="Title" required><Input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="Registration Deadline" /></FormField>

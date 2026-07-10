@@ -25,7 +25,7 @@ const TYPE_TONE = {
 }
 
 export default function StudentNotifications() {
-  const { notifications, markNotificationRead, markAllNotificationsRead } = useStudentData()
+  const { loading, loaded, notifications, markNotificationRead, markAllNotificationsRead } = useStudentData()
   const navigate = useNavigate()
   const [tab, setTab] = useState('all')
 

@@ -1,188 +1,198 @@
-const studentService = require('./student.service');
+import * as svc from './student.service.js'
 
-exports.getDashboard = async (req, res) => {
+export const getDashboard = async (req, res) => {
   try {
-    const data = await studentService.getDashboard(req.user.id);
-    res.json(data);
+    const data = await svc.getDashboard(req.user.id)
+    res.json(data)
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
+    console.error(err)
+    res.status(500).json({ message: 'Server error' })
   }
-};
+}
 
-exports.getCatalog = async (req, res) => {
+export const getCatalog = async (req, res) => {
   try {
-    const courses = await studentService.getCatalog();
-    res.json({ courses });
+    const courses = await svc.getCatalog()
+    res.json({ courses })
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
+    console.error(err)
+    res.status(500).json({ message: 'Server error' })
   }
-};
+}
 
-exports.enroll = async (req, res) => {
+export const enroll = async (req, res) => {
   try {
-    const enrollment = await studentService.enroll(req.user.id, req.body.courseId);
-    res.status(201).json({ message: 'Enrolled successfully', enrollment });
+    const enrollment = await svc.enroll(req.user.id, req.body.courseId)
+    res.status(201).json({ message: 'Enrolled successfully', enrollment })
   } catch (err) {
-    if (err.status) return res.status(err.status).json({ message: err.message });
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
+    if (err.status) return res.status(err.status).json({ message: err.message })
+    console.error(err)
+    res.status(500).json({ message: 'Server error' })
   }
-};
+}
 
-exports.drop = async (req, res) => {
+export const drop = async (req, res) => {
   try {
-    await studentService.drop(req.user.id, req.params.courseId);
-    res.json({ message: 'Dropped successfully' });
+    await svc.drop(req.user.id, req.params.courseId)
+    res.json({ message: 'Dropped successfully' })
   } catch (err) {
-    if (err.status) return res.status(err.status).json({ message: err.message });
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
+    if (err.status) return res.status(err.status).json({ message: err.message })
+    console.error(err)
+    res.status(500).json({ message: 'Server error' })
   }
-};
+}
 
-exports.getMyCourses = async (req, res) => {
+export const getMyCourses = async (req, res) => {
   try {
-    const courses = await studentService.getMyCourses(req.user.id);
-    res.json({ courses });
+    const courses = await svc.getMyCourses(req.user.id)
+    res.json({ courses })
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
+    console.error(err)
+    res.status(500).json({ message: 'Server error' })
   }
-};
+}
 
-exports.getClassroom = async (req, res) => {
+export const getClassroom = async (req, res) => {
   try {
-    const data = await studentService.getClassroom(req.user.id, req.params.courseId);
-    res.json(data);
+    const data = await svc.getClassroom(req.user.id, req.params.courseId)
+    res.json(data)
   } catch (err) {
-    if (err.status) return res.status(err.status).json({ message: err.message });
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
+    if (err.status) return res.status(err.status).json({ message: err.message })
+    console.error(err)
+    res.status(500).json({ message: 'Server error' })
   }
-};
+}
 
-exports.getAssignments = async (req, res) => {
+export const getAssignments = async (req, res) => {
   try {
-    const assignments = await studentService.getAssignments(req.user.id);
-    res.json({ assignments });
+    const assignments = await svc.getAssignments(req.user.id)
+    res.json({ assignments })
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
+    console.error(err)
+    res.status(500).json({ message: 'Server error' })
   }
-};
+}
 
-exports.submitAssignment = async (req, res) => {
+export const submitAssignment = async (req, res) => {
   try {
-    const { assignmentId, fileName } = req.body;
-    const submission = await studentService.submitAssignment(req.user.id, assignmentId, fileName);
-    res.status(201).json({ message: 'Assignment submitted', submission });
+    const { assignmentId, fileName } = req.body
+    const submission = await svc.submitAssignment(req.user.id, assignmentId, fileName)
+    res.status(201).json({ message: 'Assignment submitted', submission })
   } catch (err) {
-    if (err.status) return res.status(err.status).json({ message: err.message });
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
+    if (err.status) return res.status(err.status).json({ message: err.message })
+    console.error(err)
+    res.status(500).json({ message: 'Server error' })
   }
-};
+}
 
-exports.getGrades = async (req, res) => {
+export const getGrades = async (req, res) => {
   try {
-    const data = await studentService.getGrades(req.user.id);
-    res.json(data);
+    const data = await svc.getGrades(req.user.id)
+    res.json(data)
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
+    console.error(err)
+    res.status(500).json({ message: 'Server error' })
   }
-};
+}
 
-exports.calculateGrade = async (req, res) => {
+export const calculateGrade = async (req, res) => {
   try {
-    const result = await studentService.calculateGrade(req.user.id, req.params.courseId);
-    res.json(result);
+    const result = await svc.calculateGrade(req.user.id, req.params.courseId)
+    res.json(result)
   } catch (err) {
-    if (err.status) return res.status(err.status).json({ message: err.message });
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
+    if (err.status) return res.status(err.status).json({ message: err.message })
+    console.error(err)
+    res.status(500).json({ message: 'Server error' })
   }
-};
+}
 
-exports.getTranscript = async (req, res) => {
+export const getTranscript = async (req, res) => {
   try {
-    const data = await studentService.getTranscript(req.user.id);
-    res.json(data);
+    const data = await svc.getTranscript(req.user.id)
+    res.json(data)
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
+    console.error(err)
+    res.status(500).json({ message: 'Server error' })
   }
-};
+}
 
-exports.getExams = async (req, res) => {
+export const getExams = async (req, res) => {
   try {
-    const exams = await studentService.getExams(req.user.id);
-    res.json({ exams });
+    const exams = await svc.getExams(req.user.id)
+    res.json({ exams })
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
+    console.error(err)
+    res.status(500).json({ message: 'Server error' })
   }
-};
+}
 
-exports.getNotifications = async (req, res) => {
+export const getNotifications = async (req, res) => {
   try {
-    const notifications = await studentService.getNotifications(req.user.id);
-    res.json({ notifications });
+    const notifications = await svc.getNotifications(req.user.id)
+    res.json({ notifications })
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
+    console.error(err)
+    res.status(500).json({ message: 'Server error' })
   }
-};
+}
 
-exports.markNotificationRead = async (req, res) => {
+export const markNotificationRead = async (req, res) => {
   try {
-    const notification = await studentService.markNotificationRead(req.params.id, req.user.id);
-    res.json({ notification });
+    const notification = await svc.markNotificationRead(req.params.id, req.user.id)
+    res.json({ notification })
   } catch (err) {
-    if (err.status) return res.status(err.status).json({ message: err.message });
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
+    if (err.status) return res.status(err.status).json({ message: err.message })
+    console.error(err)
+    res.status(500).json({ message: 'Server error' })
   }
-};
+}
 
-exports.markAllNotificationsRead = async (req, res) => {
+export const markAllNotificationsRead = async (req, res) => {
   try {
-    const result = await studentService.markAllNotificationsRead(req.user.id);
-    res.json(result);
+    const result = await svc.markAllNotificationsRead(req.user.id)
+    res.json(result)
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
+    console.error(err)
+    res.status(500).json({ message: 'Server error' })
   }
-};
+}
 
-exports.getUsers = async (req, res) => {
+export const getUsers = async (req, res) => {
   try {
-    const users = await studentService.getUsers();
-    res.json({ users });
+    const users = await svc.getUsers()
+    res.json({ users })
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
+    console.error(err)
+    res.status(500).json({ message: 'Server error' })
   }
-};
+}
 
-exports.getAllCourses = async (req, res) => {
+export const init = async (req, res) => {
   try {
-    const courses = await studentService.getAllCourses();
-    res.json({ courses });
+    const data = await svc.getInitData(req.user.id)
+    res.json(data)
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
+    console.error(err)
+    res.status(500).json({ message: 'Server error' })
   }
-};
+}
 
-exports.getEnrollments = async (req, res) => {
+export const getAllCourses = async (req, res) => {
   try {
-    const enrollments = await studentService.getEnrollments(req.user.id);
-    res.json({ enrollments });
+    const courses = await svc.getAllCourses()
+    res.json({ courses })
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
+    console.error(err)
+    res.status(500).json({ message: 'Server error' })
   }
-};
+}
+
+export const getEnrollments = async (req, res) => {
+  try {
+    const enrollments = await svc.getEnrollments(req.user.id)
+    res.json({ enrollments })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ message: 'Server error' })
+  }
+}

@@ -1,114 +1,117 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { studentApi, uploadApi } from '../api'
 
-export default function useStudentData() {
-  const [data, setData] = useState({
+const CACHE = { data: null, promise: null }
+
+function initState(overrides = {}) {
+  return {
     courses: [], users: [], enrollments: [],
     assignments: [], grades: [], exams: [], notifications: [], announcements: [],
-    loading: true,
-  })
+    loaded: false, loading: true,
+    ...overrides,
+  }
+}
+
+export default function useStudentData() {
+  const [data, setData] = useState(() => CACHE.data ? { ...CACHE.data, loading: false } : initState())
+  const mounted = useRef(true)
 
   useEffect(() => {
-    let cancelled = false
-    let interval
+    mounted.current = true
+    if (CACHE.data) return
 
     async function load() {
       try {
-        const [coursesRes, enrollmentsRes, usersRes, assignmentsRes, gradesRes, examsRes, notifsRes, dashRes] =
-          await Promise.allSettled([
-            studentApi.getAllCourses(),
-            studentApi.getEnrollments(),
-            studentApi.getUsers(),
-            studentApi.getAssignments(),
-            studentApi.getGrades(),
-            studentApi.getExams(),
-            studentApi.getNotifications(),
-            studentApi.getDashboard(),
-          ])
-
-        if (cancelled) return
-
-        const courses = coursesRes.value?.courses || []
-        const enrollments = enrollmentsRes.value?.enrollments || []
-        const users = usersRes.value?.users || []
-        const assignments = assignmentsRes.value?.assignments || []
-        const grades = gradesRes.value?.grades || []
-        const exams = examsRes.value?.exams || []
-        const notifications = notifsRes.value?.notifications || []
-        const announcements = dashRes.value?.announcements || []
-
-        setData({ courses, enrollments, users, assignments, grades, exams, notifications, announcements, loading: false })
+        const res = CACHE.promise ? await CACHE.promise : await (CACHE.promise = studentApi.getInit())
+        CACHE.data = {
+          courses: res.courses || [],
+          enrollments: res.enrollments || [],
+          users: res.users || [],
+          assignments: res.assignments || [],
+          grades: res.grades || [],
+          exams: res.exams || [],
+          notifications: res.notifications || [],
+          announcements: res.announcements || [],
+        }
+        if (mounted.current) setData({ ...CACHE.data, loaded: true, loading: false })
       } catch (e) {
         console.error('useStudentData error', e)
-        if (!cancelled) setData((d) => ({ ...d, loading: false }))
+        if (mounted.current) setData((d) => ({ ...d, loaded: false, loading: false }))
       }
     }
 
-    async function refresh() {
+    load()
+
+    const interval = setInterval(async () => {
       try {
-        const [assignmentsRes, gradesRes, notifsRes] = await Promise.allSettled([
-          studentApi.getAssignments(),
-          studentApi.getGrades(),
-          studentApi.getNotifications(),
-        ])
-        if (cancelled) return
-        setData((d) => ({
+        const res = await studentApi.getInit()
+        CACHE.data = {
+          courses: res.courses || [],
+          enrollments: res.enrollments || [],
+          users: res.users || [],
+          assignments: res.assignments || [],
+          grades: res.grades || [],
+          exams: res.exams || [],
+          notifications: res.notifications || [],
+          announcements: res.announcements || [],
+        }
+        if (mounted.current) setData((d) => ({
           ...d,
-          assignments: assignmentsRes.value?.assignments || d.assignments,
-          grades: gradesRes.value?.grades || d.grades,
-          notifications: notifsRes.value?.notifications || d.notifications,
+          ...CACHE.data,
+          loaded: true,
+          loading: false,
         }))
       } catch { /* ignore */ }
-    }
+    }, 30000)
 
-    load()
-    interval = setInterval(refresh, 30000)
-    return () => { cancelled = true; clearInterval(interval) }
+    return () => { mounted.current = false; clearInterval(interval) }
   }, [])
 
   const enroll = useCallback(async (courseId) => {
     const result = await studentApi.enroll(courseId)
     const enrollment = result.enrollment
     setData((d) => ({ ...d, enrollments: [...d.enrollments, enrollment] }))
+    if (CACHE.data) CACHE.data.enrollments = [...CACHE.data.enrollments, enrollment]
     return result
   }, [])
 
   const drop = useCallback(async (courseId) => {
     await studentApi.drop(courseId)
-    setData((d) => ({ ...d, enrollments: d.enrollments.filter((e) => e.courseId !== courseId) }))
+    const cid = String(courseId)
+    setData((d) => ({ ...d, enrollments: d.enrollments.filter((e) => String(e.courseId) !== cid) }))
+    if (CACHE.data) CACHE.data.enrollments = CACHE.data.enrollments.filter((e) => String(e.courseId) !== cid)
   }, [])
 
   const submitAssignment = useCallback(async (assignmentId, file) => {
     const uploadRes = await uploadApi.uploadFile(file)
     const result = await studentApi.submitAssignment(assignmentId, uploadRes.filename)
     const submission = result.submission
-    setData((d) => ({
-      ...d,
-      assignments: d.assignments.map((a) =>
-        (a.id || a._id) === assignmentId
-          ? { ...a, sub: { ...submission, id: submission._id || submission.id, assignmentId, status: 'submitted', fileName: submission.fileUrl } }
-          : a
-      ),
-    }))
+    const updated = (d) => d.assignments.map((a) =>
+      (a.id || a._id) === assignmentId
+        ? { ...a, sub: { ...submission, id: submission._id || submission.id, assignmentId, status: 'submitted', fileName: submission.fileUrl } }
+        : a
+    )
+    setData((d) => ({ ...d, assignments: updated(d) }))
+    if (CACHE.data) CACHE.data.assignments = CACHE.data.assignments.map((a) =>
+      (a.id || a._id) === assignmentId
+        ? { ...a, sub: { ...submission, id: submission._id || submission.id, assignmentId, status: 'submitted', fileName: submission.fileUrl } }
+        : a
+    )
     return result
   }, [])
 
   const markNotificationRead = useCallback(async (id) => {
     await studentApi.markNotificationRead(id)
-    setData((d) => ({
-      ...d,
-      notifications: d.notifications.map((n) =>
-        (n._id || n.id) === id ? { ...n, read: true } : n
-      ),
-    }))
+    const markRead = (arr) => arr.map((n) => (n._id || n.id) === id ? { ...n, read: true } : n)
+    setData((d) => ({ ...d, notifications: markRead(d.notifications) }))
+    if (CACHE.data) CACHE.data.notifications = markRead(CACHE.data.notifications)
   }, [])
 
   const markAllNotificationsRead = useCallback(async () => {
     await studentApi.markAllNotificationsRead()
-    setData((d) => ({
-      ...d,
-      notifications: d.notifications.map((n) => ({ ...n, read: true })),
-    }))
+    const allRead = (arr) => arr.map((n) => ({ ...n, read: true }))
+    setData((d) => ({ ...d, notifications: allRead(d.notifications) }))
+    if (CACHE.data) CACHE.data.notifications = allRead(CACHE.data.notifications)
   }, [])
 
   const calculateGrade = useCallback(async (courseId) => {

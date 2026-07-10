@@ -6,7 +6,7 @@ import { PageHeader, Card, CardHeader, Badge, EmptyState, LoadingState, SearchIn
 import { formatDate, daysUntil, classNames } from '../../utils/helpers'
 
 export default function StudentExams() {
-  const { loading, courses, enrollments, exams } = useStudentData()
+  const { loading, loaded, courses, enrollments, exams } = useStudentData()
   const { currentUser } = useAuth()
   const [search, setSearch] = useState('')
 
@@ -50,7 +50,7 @@ export default function StudentExams() {
     )
   }
 
-  if (loading) return <LoadingState />
+  if (!loaded && loading) return <LoadingState />
 
   return (
     <div>

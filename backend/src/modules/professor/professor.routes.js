@@ -1,44 +1,45 @@
-const express = require('express');
-const router = express.Router();
-const verifyToken = require('../../middleware/auth.middleware');
-const authorize = require('../../middleware/role.middleware');
-const controller = require('./professor.controller');
+import { Router } from 'express'
+import { verifyToken } from '../../middleware/auth.middleware.js'
+import { authorize } from '../../middleware/role.middleware.js'
+import * as c from './professor.controller.js'
 
-router.use(verifyToken, authorize('professor'));
+const router = Router()
 
-router.get('/dashboard', controller.getDashboard);
-router.get('/courses', controller.getCourses);
-router.get('/courses/:courseId', controller.getCourseDetail);
+router.use(verifyToken, authorize('professor'))
 
-router.get('/courses/:courseId/materials', controller.getMaterials);
-router.post('/courses/:courseId/materials', controller.addMaterial);
-router.delete('/courses/:courseId/materials/:materialId', controller.deleteMaterial);
+router.get('/dashboard', c.getDashboard)
+router.get('/courses', c.getCourses)
+router.get('/courses/:courseId', c.getCourseDetail)
 
-router.get('/courses/:courseId/announcements', controller.getCourseAnnouncements);
-router.post('/courses/:courseId/announcements', controller.addAnnouncement);
-router.delete('/announcements/:id', controller.deleteAnnouncement);
+router.get('/courses/:courseId/materials', c.getMaterials)
+router.post('/courses/:courseId/materials', c.addMaterial)
+router.delete('/courses/:courseId/materials/:materialId', c.deleteMaterial)
 
-router.get('/courses/:courseId/assignments', controller.getCourseAssignments);
-router.post('/courses/:courseId/assignments', controller.addAssignment);
-router.delete('/assignments/:id', controller.deleteAssignment);
+router.get('/courses/:courseId/announcements', c.getCourseAnnouncements)
+router.post('/courses/:courseId/announcements', c.addAnnouncement)
+router.delete('/announcements/:id', c.deleteAnnouncement)
 
-router.get('/submissions', controller.getSubmissions);
-router.patch('/submissions/:id/grade', controller.gradeSubmission);
+router.get('/courses/:courseId/assignments', c.getCourseAssignments)
+router.post('/courses/:courseId/assignments', c.addAssignment)
+router.delete('/assignments/:id', c.deleteAssignment)
 
-router.get('/courses/:courseId/grades', controller.getCourseGrades);
-router.put('/courses/:courseId/grades', controller.setFinalGrade);
+router.get('/submissions', c.getSubmissions)
+router.patch('/submissions/:id/grade', c.gradeSubmission)
 
-router.get('/attendance', controller.getAttendance);
-router.get('/courses/:courseId/attendance', controller.getCourseAttendance);
-router.post('/courses/:courseId/attendance', controller.saveAttendance);
+router.get('/courses/:courseId/grades', c.getCourseGrades)
+router.put('/courses/:courseId/grades', c.setFinalGrade)
 
-router.get('/assignments', controller.getAssignments);
-router.get('/announcements', controller.getAnnouncements);
-router.get('/users', controller.getUsers);
-router.get('/enrollments', controller.getEnrollments);
+router.get('/attendance', c.getAttendance)
+router.get('/courses/:courseId/attendance', c.getCourseAttendance)
+router.post('/courses/:courseId/attendance', c.saveAttendance)
 
-router.get('/notifications', controller.getNotifications);
-router.patch('/notifications/:id/read', controller.markNotificationRead);
-router.patch('/notifications/read-all', controller.markAllNotificationsRead);
+router.get('/assignments', c.getAssignments)
+router.get('/announcements', c.getAnnouncements)
+router.get('/users', c.getUsers)
+router.get('/enrollments', c.getEnrollments)
 
-module.exports = router;
+router.get('/notifications', c.getNotifications)
+router.patch('/notifications/:id/read', c.markNotificationRead)
+router.patch('/notifications/read-all', c.markAllNotificationsRead)
+
+export default router

@@ -1,8 +1,8 @@
-const nodemailer = require('nodemailer');
+import nodemailer from 'nodemailer'
 
-const SMTP_HOST = process.env.SMTP_HOST || 'smtp.gmail.com';
-const SMTP_PORT = Number(process.env.SMTP_PORT) || 587;
-const hasEmailConfig = !!(process.env.EMAIL_USER && process.env.EMAIL_PASS);
+const SMTP_HOST = process.env.SMTP_HOST || 'smtp.gmail.com'
+const SMTP_PORT = Number(process.env.SMTP_PORT) || 587
+const hasEmailConfig = !!(process.env.EMAIL_USER && process.env.EMAIL_PASS)
 
 const transporter = hasEmailConfig
   ? nodemailer.createTransport({
@@ -11,26 +11,26 @@ const transporter = hasEmailConfig
       secure: SMTP_PORT === 465,
       auth: {
         user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-      }
+        pass: process.env.EMAIL_PASS,
+      },
     })
-  : null;
+  : null
 
-const SENDER = hasEmailConfig ? `"UniHub" <${process.env.EMAIL_USER}>` : null;
+const SENDER = hasEmailConfig ? `"UniHub" <${process.env.EMAIL_USER}>` : null
 
 async function maybeSendMail(opts) {
   if (!transporter) {
-    console.log('--- EMAIL (not sent — configure EMAIL_USER/EMAIL_PASS env vars) ---');
-    console.log('To:', opts.to);
-    console.log('Subject:', opts.subject);
-    console.log('Body (text):', opts.text || '(html only)');
-    console.log('----------------------------------------------------------------');
-    return;
+    console.log('--- EMAIL (not sent — configure EMAIL_USER/EMAIL_PASS env vars) ---')
+    console.log('To:', opts.to)
+    console.log('Subject:', opts.subject)
+    console.log('Body (text):', opts.text || '(html only)')
+    console.log('----------------------------------------------------------------')
+    return
   }
-  try { await transporter.sendMail({ from: SENDER, ...opts }); } catch { /* ignore */ }
+  try { await transporter.sendMail({ from: SENDER, ...opts }) } catch { /* ignore */ }
 }
 
-async function sendCredentialsEmail({ to, firstName, universityEmail, password, role }) {
+export async function sendCredentialsEmail({ to, firstName, universityEmail, password, role }) {
   await maybeSendMail({
     to,
     subject: 'Your UniHub account is ready',
@@ -45,11 +45,11 @@ async function sendCredentialsEmail({ to, firstName, universityEmail, password, 
         <p>Please log in and change your password as soon as possible.</p>
         <p><a href="${process.env.CLIENT_URL}/login">Go to login</a></p>
       </div>
-    `
-  });
+    `,
+  })
 }
 
-async function sendResetEmail({ to, resetLink }) {
+export async function sendResetEmail({ to, resetLink }) {
   await maybeSendMail({
     to,
     subject: 'Reset your UniHub password',
@@ -60,11 +60,11 @@ async function sendResetEmail({ to, resetLink }) {
         <p><a href="${resetLink}">${resetLink}</a></p>
         <p>If you didn't request this, you can ignore this email.</p>
       </div>
-    `
-  });
+    `,
+  })
 }
 
-async function sendNotificationEmail({ to, subject, body, link }) {
+export async function sendNotificationEmail({ to, subject, body, link }) {
   await maybeSendMail({
     to,
     subject,
@@ -75,8 +75,6 @@ async function sendNotificationEmail({ to, subject, body, link }) {
         <hr style="margin:20px 0;border:none;border-top:1px solid #e5e7eb;" />
         <p style="font-size:12px;color:#9ca3af;">UniHub — University Management System</p>
       </div>
-    `
-  });
+    `,
+  })
 }
-
-module.exports = { sendCredentialsEmail, sendResetEmail, sendNotificationEmail };

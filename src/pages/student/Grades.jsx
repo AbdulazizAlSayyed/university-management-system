@@ -6,7 +6,7 @@ import { PageHeader, Card, CardHeader, StatCard, Badge, StatusBadge, EmptyState,
 import { calculateGPA, gradeColor, formatDate, classNames } from '../../utils/helpers'
 
 export default function StudentGrades() {
-  const { loading, courses, enrollments, assignments, grades } = useStudentData()
+  const { loading, loaded, courses, enrollments, assignments, grades } = useStudentData()
   const { currentUser } = useAuth()
   const [search, setSearch] = useState('')
 
@@ -29,7 +29,7 @@ export default function StudentGrades() {
 
   const gradeFor = (cid) => myGrades.find((g) => g.courseId === cid)
 
-  if (loading) return <LoadingState />
+  if (!loaded && loading) return <LoadingState />
 
   return (
     <div>

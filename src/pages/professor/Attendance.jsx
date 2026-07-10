@@ -40,9 +40,6 @@ export default function ProfessorAttendance() {
     .filter((a) => a.courseId === courseId)
     .sort((a, b) => new Date(b.sessionDate || b.date) - new Date(a.sessionDate || a.date))
 
-  const sq = studentSearch.toLowerCase()
-  const filteredSummary = summary.filter(({ student }) => !sq || fullName(student).toLowerCase().includes(sq))
-
   const startSession = () => {
     setDate(new Date().toISOString().slice(0, 10))
     setTopic('')
@@ -79,6 +76,9 @@ export default function ProfessorAttendance() {
       return { student: s, present, total, pct: total ? Math.round((present / total) * 100) : null }
     })
   }, [roster, records])
+
+  const sq = studentSearch.toLowerCase()
+  const filteredSummary = summary.filter(({ student }) => !sq || fullName(student).toLowerCase().includes(sq))
 
   if (loading) return <LoadingState />
 

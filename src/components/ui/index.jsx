@@ -1,11 +1,10 @@
-import { useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { X, Search, Inbox, Loader2, UploadCloud } from 'lucide-react'
 import { classNames } from '../../utils/helpers'
 
-// ------------------------------------------------------------------ Button
 const BTN_VARIANTS = {
   primary: 'bg-brand-600 text-white hover:bg-brand-700 focus:ring-brand-500/40 shadow-sm',
-  secondary: 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 focus:ring-slate-400/40',
+  secondary: 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 hover:border-slate-400 focus:ring-slate-400/40',
   ghost: 'text-slate-600 hover:bg-slate-100 focus:ring-slate-400/30',
   danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500/40 shadow-sm',
   success: 'bg-emerald-600 text-white hover:bg-emerald-700 focus:ring-emerald-500/40 shadow-sm',
@@ -20,7 +19,7 @@ export function Button({ variant = 'primary', size = 'md', icon: Icon, children,
   return (
     <button
       className={classNames(
-        'inline-flex items-center justify-center rounded-lg font-semibold transition focus:outline-none focus:ring-2 disabled:opacity-50 disabled:pointer-events-none',
+        'inline-flex items-center justify-center rounded-lg font-semibold transition-all duration-150 focus:outline-none focus:ring-2 disabled:opacity-50 disabled:pointer-events-none active:scale-[0.98]',
         BTN_VARIANTS[variant], BTN_SIZES[size], className
       )}
       {...props}
@@ -34,7 +33,7 @@ export function Button({ variant = 'primary', size = 'md', icon: Icon, children,
 export function IconButton({ icon: Icon, className, size = 18, ...props }) {
   return (
     <button
-      className={classNames('inline-flex items-center justify-center rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400/30', className)}
+      className={classNames('inline-flex items-center justify-center rounded-lg p-2 text-slate-400 transition-all duration-150 hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-400/30 active:scale-[0.95]', className)}
       {...props}
     >
       <Icon size={size} />
@@ -42,10 +41,9 @@ export function IconButton({ icon: Icon, className, size = 18, ...props }) {
   )
 }
 
-// ------------------------------------------------------------------ Card
 export function Card({ className, children, ...props }) {
   return (
-    <div className={classNames('rounded-xl border border-slate-200 bg-white shadow-card', className)} {...props}>
+    <div className={classNames('rounded-xl bg-white shadow-card ring-1 ring-slate-200/60', className)} {...props}>
       {children}
     </div>
   )
@@ -53,7 +51,7 @@ export function Card({ className, children, ...props }) {
 
 export function CardHeader({ title, subtitle, action, icon: Icon, className }) {
   return (
-    <div className={classNames('flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4', className)}>
+    <div className={classNames('flex items-center justify-between gap-3 border-b border-slate-100/80 px-5 py-4', className)}>
       <div className="flex items-center gap-3 min-w-0">
         {Icon && (
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-600">
@@ -80,15 +78,15 @@ export function StatCard({ icon: Icon, label, value, sub, tone = 'brand' }) {
     violet: 'bg-violet-50 text-violet-600',
   }
   return (
-    <Card className="p-5 transition hover:shadow-card-hover">
+    <Card className="p-5 transition-all duration-150 hover:shadow-card-hover hover:-translate-y-0.5">
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm font-medium text-slate-500">{label}</p>
-          <p className="mt-2 text-3xl font-bold tracking-tight text-slate-800">{value}</p>
+          <p className="mt-1.5 text-3xl font-bold tracking-tight text-slate-800">{value}</p>
           {sub && <p className="mt-1 text-xs text-slate-400">{sub}</p>}
         </div>
         {Icon && (
-          <span className={classNames('grid h-11 w-11 place-items-center rounded-xl', tones[tone])}>
+          <span className={classNames('grid h-11 w-11 place-items-center rounded-xl ring-1 ring-black/[0.04]', tones[tone])}>
             <Icon size={22} />
           </span>
         )}
@@ -97,7 +95,6 @@ export function StatCard({ icon: Icon, label, value, sub, tone = 'brand' }) {
   )
 }
 
-// ------------------------------------------------------------------ Badge
 const BADGE_TONES = {
   slate: 'bg-slate-100 text-slate-700',
   brand: 'bg-brand-100 text-brand-700',
@@ -109,7 +106,7 @@ const BADGE_TONES = {
 }
 export function Badge({ tone = 'slate', children, className, dot = false }) {
   return (
-    <span className={classNames('inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold', BADGE_TONES[tone], className)}>
+    <span className={classNames('inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider', BADGE_TONES[tone], className)}>
       {dot && <span className="h-1.5 w-1.5 rounded-full bg-current" />}
       {children}
     </span>
@@ -132,18 +129,16 @@ export function StatusBadge({ status }) {
   return <Badge tone={s.tone} dot>{s.label}</Badge>
 }
 
-// ------------------------------------------------------------------ Avatar
 export function Avatar({ user, size = 'md', className }) {
   const sizes = { xs: 'h-7 w-7 text-xs', sm: 'h-9 w-9 text-sm', md: 'h-10 w-10 text-sm', lg: 'h-14 w-14 text-lg' }
   const inits = user ? `${(user.firstName || '')[0] || ''}${(user.lastName || '')[0] || ''}`.toUpperCase() : '?'
   return (
-    <span className={classNames('inline-grid place-items-center rounded-full font-semibold text-white shrink-0', user?.avatarColor || 'bg-slate-400', sizes[size], className)}>
+    <span className={classNames('inline-grid place-items-center rounded-full font-semibold text-white shrink-0 ring-2 ring-white/80', user?.avatarColor || 'bg-gradient-to-br from-brand-400 to-brand-600', sizes[size], className)}>
       {inits}
     </span>
   )
 }
 
-// ------------------------------------------------------------------ Form fields
 export function FormField({ label, error, required, children, hint, className }) {
   return (
     <div className={className}>
@@ -153,8 +148,8 @@ export function FormField({ label, error, required, children, hint, className })
         </label>
       )}
       {children}
-      {hint && !error && <p className="mt-1 text-xs text-slate-400">{hint}</p>}
-      {error && <p className="mt-1 text-xs font-medium text-red-500">{error}</p>}
+      {hint && !error && <p className="mt-1.5 text-xs text-slate-400">{hint}</p>}
+      {error && <p className="mt-1.5 text-xs font-medium text-red-500">{error}</p>}
     </div>
   )
 }
@@ -175,47 +170,50 @@ export function Select({ error, className, children, ...props }) {
   )
 }
 
-// ------------------------------------------------------------------ SearchInput
 export function SearchInput({ className, ...props }) {
   return (
     <div className={classNames('relative', className)}>
-      <Search size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-      <input className="field-input pl-9" {...props} />
+      <Search size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+      <input className="field-input pl-10" {...props} />
     </div>
   )
 }
 
-// ------------------------------------------------------------------ DatePicker
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const DAYS = Array.from({ length: 31 }, (_, i) => i + 1)
 const curYear = new Date().getFullYear()
 const YEARS = Array.from({ length: curYear + 5 - 1919 }, (_, i) => 1920 + i).reverse()
 
-export function DatePicker({ value, onChange, className, placeholder = 'Select date' }) {
-  const parts = value ? value.split('-') : []
-  const year = parts[0] || ''
-  const month = parts[1] || ''
-  const day = parts[2] || ''
+export function DatePicker({ value, onChange, className }) {
+  const [parts, setParts] = useState(() => {
+    const p = value ? value.split('-') : []
+    return { y: p[0] || '', m: p[1] || '', d: p[2] || '' }
+  })
 
-  const set = (y, m, d) => {
-    if (!y || !m || !d) { onChange(''); return }
-    const maxDay = new Date(Number(y), Number(m), 0).getDate()
-    const clamped = Math.min(Number(d), maxDay)
-    const iso = `${y}-${String(m).padStart(2, '0')}-${String(clamped).padStart(2, '0')}`
+  useEffect(() => {
+    if (!parts.y || !parts.m || !parts.d) { onChange(''); return }
+    const maxDay = new Date(Number(parts.y), Number(parts.m), 0).getDate()
+    const clamped = Math.min(Number(parts.d), maxDay)
+    const iso = `${parts.y}-${String(parts.m).padStart(2, '0')}-${String(clamped).padStart(2, '0')}`
     if (iso !== value) onChange(iso)
-  }
+  }, [parts.y, parts.m, parts.d])
+
+  useEffect(() => {
+    const p = value ? value.split('-') : []
+    setParts({ y: p[0] || '', m: p[1] || '', d: p[2] || '' })
+  }, [value])
 
   return (
     <div className={classNames('flex gap-2', className)}>
-      <select className="field-input flex-1" value={month} onChange={(e) => set(year, e.target.value, day)}>
+      <select className="field-input flex-1" value={parts.m} onChange={(e) => setParts((p) => ({ ...p, m: e.target.value }))}>
         <option value="">Month</option>
-        {MONTHS.map((name, i) => <option key={i + 1} value={String(i + 1).padStart(2, '0')}>{name}</option>)}
+        {MONTH_NAMES.map((name, i) => <option key={i + 1} value={String(i + 1).padStart(2, '0')}>{name}</option>)}
       </select>
-      <select className="field-input w-20 shrink-0" value={day} onChange={(e) => set(year, month, e.target.value)}>
+      <select className="field-input w-20 shrink-0" value={parts.d} onChange={(e) => setParts((p) => ({ ...p, d: e.target.value }))}>
         <option value="">Day</option>
         {DAYS.map((d) => <option key={d} value={String(d).padStart(2, '0')}>{d}</option>)}
       </select>
-      <select className="field-input flex-1" value={year} onChange={(e) => set(e.target.value, month, day)}>
+      <select className="field-input flex-1" value={parts.y} onChange={(e) => setParts((p) => ({ ...p, y: e.target.value }))}>
         <option value="">Year</option>
         {YEARS.map((y) => <option key={y} value={String(y)}>{y}</option>)}
       </select>
@@ -223,7 +221,6 @@ export function DatePicker({ value, onChange, className, placeholder = 'Select d
   )
 }
 
-// ------------------------------------------------------------------ Empty / Loading
 export function EmptyState({ icon: Icon = Inbox, title, message, action }) {
   return (
     <div className="flex flex-col items-center justify-center px-6 py-14 text-center">
@@ -249,13 +246,12 @@ export function LoadingState({ label = 'Loading…' }) {
   )
 }
 
-// ------------------------------------------------------------------ PageHeader
 export function PageHeader({ title, subtitle, actions, icon: Icon }) {
   return (
     <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-center gap-3">
         {Icon && (
-          <span className="grid h-11 w-11 place-items-center rounded-xl bg-brand-600 text-white shadow-sm">
+          <span className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-brand-600 to-brand-700 text-white shadow-sm">
             <Icon size={22} />
           </span>
         )}
@@ -269,17 +265,15 @@ export function PageHeader({ title, subtitle, actions, icon: Icon }) {
   )
 }
 
-// ------------------------------------------------------------------ Progress
 export function ProgressBar({ value = 0, tone = 'brand', className }) {
   const tones = { brand: 'bg-brand-500', emerald: 'bg-emerald-500', amber: 'bg-amber-500', red: 'bg-red-500' }
   return (
     <div className={classNames('h-2 w-full overflow-hidden rounded-full bg-slate-100', className)}>
-      <div className={classNames('h-full rounded-full transition-all', tones[tone])} style={{ width: `${Math.min(100, Math.max(0, value))}%` }} />
+      <div className={classNames('h-full rounded-full transition-all duration-500 ease-out', tones[tone])} style={{ width: `${Math.min(100, Math.max(0, value))}%` }} />
     </div>
   )
 }
 
-// ------------------------------------------------------------------ Tabs
 export function Tabs({ tabs, active, onChange }) {
   return (
     <div className="flex gap-1 overflow-x-auto border-b border-slate-200">
@@ -308,7 +302,6 @@ export function Tabs({ tabs, active, onChange }) {
   )
 }
 
-// ------------------------------------------------------------------ Modal
 export function Modal({ open, onClose, title, subtitle, children, footer, size = 'md' }) {
   useEffect(() => {
     if (!open) return
@@ -326,7 +319,7 @@ export function Modal({ open, onClose, title, subtitle, children, footer, size =
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm animate-fade-in" onClick={onClose} />
-      <div className={classNames('relative z-10 w-full animate-fade-in rounded-2xl bg-white shadow-xl', sizes[size])}>
+      <div className={classNames('relative z-10 w-full animate-scale-in rounded-2xl bg-white shadow-modal', sizes[size])}>
         <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-4">
           <div>
             <h3 className="text-lg font-bold text-slate-800">{title}</h3>
@@ -360,11 +353,10 @@ export function ConfirmDialog({ open, onClose, onConfirm, title, message, confir
   )
 }
 
-// ------------------------------------------------------------------ FileDropzone
 export function FileDropzone({ onFile, hint = 'PDF, DOCX, PPTX, MP4 — up to 50 MB', fileName, fileObject }) {
   const displayName = fileName || (fileObject?.name ?? '')
   return (
-    <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-6 py-8 text-center transition hover:border-brand-400 hover:bg-brand-50/40">
+    <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50/50 px-6 py-8 text-center transition-all duration-150 hover:border-brand-400 hover:bg-brand-50/30">
       <span className="grid h-11 w-11 place-items-center rounded-full bg-brand-100 text-brand-600">
         <UploadCloud size={22} />
       </span>

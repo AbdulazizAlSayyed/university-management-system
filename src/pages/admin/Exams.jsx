@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { CalendarClock, Plus, Pencil, Trash2, MapPin, Clock } from 'lucide-react'
-import { useData } from '../../context/DataContext'
+import * as adminApi from '../../api/admin'
 import { useToast } from '../../context/ToastContext'
 import {
   PageHeader, Card, Button, IconButton, Badge, Modal, ConfirmDialog, FormField,
@@ -36,7 +36,7 @@ function ExamFormModal({ open, onClose, onSave, initial, courses, saving }) {
         <FormField label="Course" required error={errors.courseId}>
           <Select value={form.courseId} onChange={set('courseId')} error={errors.courseId}>
             <option value="">Select a course...</option>
-            {courses.map((c) => <option key={c.id} value={c.id}>{c.code} - {c.name}</option>)}
+            {courses.map((c) => <option key={c._id || c.id} value={c._id || c.id}>{c.code} - {c.name}</option>)}
           </Select>
         </FormField>
         <div className="grid gap-4 sm:grid-cols-3">
@@ -44,7 +44,7 @@ function ExamFormModal({ open, onClose, onSave, initial, courses, saving }) {
           <FormField label="Type"><Select value={form.type} onChange={set('type')}><option>Quiz</option><option>Midterm</option><option>Final</option></Select></FormField>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <FormField label="Date" required error={errors.date}><DatePicker value={form.date} onChange={(v) => setForm((f) => ({ ...f, date: v }))} /></FormField>
+          <FormField label="Date" required error={errors.date}><Input type="date" value={form.date} onChange={(v) => setForm((f) => ({ ...f, date: v.target.value }))} /></FormField>
           <FormField label="Room" required error={errors.room}><Input value={form.room} onChange={set('room')} placeholder="Exam Hall 1" error={errors.room} /></FormField>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -65,24 +65,47 @@ export default function AdminExams() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState(null)
   const [confirmDel, setConfirmDel] = useState(null)
+  const [saving, setSaving] = useState(false)
 
-  const courseById = useMemo(() => Object.fromEntries(courses.map((c) => [c.id, c])), [courses])
+  const load = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const [examsRes, coursesRes] = await Promise.all([
+        adminApi.listExams(),
+        adminApi.listCourses(),
+      ])
+      setExams(Array.isArray(examsRes) ? examsRes : examsRes.exams || [])
+      setCourses(Array.isArray(coursesRes) ? coursesRes : coursesRes.courses || [])
+    } catch (e) {
+      setError(adminApi.errMsg(e))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { load() }, [])
+
+  const courseById = useMemo(() => Object.fromEntries(courses.map((c) => [c._id || c.id, c])), [courses])
   const sorted = [...exams].sort((a, b) => new Date(a.date) - new Date(b.date))
 
   const openCreate = () => { setEditing(null); setModalOpen(true) }
   const openEdit = (x) => { setEditing(x); setModalOpen(true) }
+
   const handleSave = async (form) => {
     setSaving(true)
     try {
-      if (editing) { await adminApi.updateExam(editing.id, form); toast('Exam updated.', 'success') }
+      if (editing) { await adminApi.updateExam(editing._id || editing.id, form); toast('Exam updated.', 'success') }
       else { await adminApi.createExam(form); toast('Exam scheduled.', 'success') }
       setModalOpen(false); load()
     } catch (e) { toast(adminApi.errMsg(e), 'error') } finally { setSaving(false) }
   }
+
   const doDelete = async () => {
-    try { await adminApi.deleteExam(confirmDel.id); toast('Exam deleted.', 'info'); load() }
+    try { await adminApi.deleteExam(confirmDel._id || confirmDel.id); toast('Exam deleted.', 'info'); setConfirmDel(null); load() }
     catch (e) { toast(adminApi.errMsg(e), 'error') }
   }
+
   const typeTone = { Midterm: 'amber', Final: 'red', Quiz: 'sky' }
 
   return (
@@ -115,9 +138,9 @@ export default function AdminExams() {
                 {sorted.map((x) => {
                   const c = courseById[x.courseId]
                   return (
-                    <tr key={x.id} className="transition hover:bg-slate-50/60">
+                    <tr key={x._id || x.id} className="transition hover:bg-slate-50/60">
                       <td className="px-5 py-3 font-semibold text-slate-700">{x.title}</td>
-                      <td className="px-5 py-3"><Badge tone="brand">{x.courseId?.code || '-'}</Badge></td>
+                      <td className="px-5 py-3"><Badge tone="brand">{c?.code || '-'}</Badge></td>
                       <td className="px-5 py-3"><Badge tone={typeTone[x.type] || 'slate'}>{x.type}</Badge></td>
                       <td className="px-5 py-3 text-slate-600">{formatDate(x.date, { weekday: 'short', month: 'short', day: 'numeric' })}</td>
                       <td className="px-5 py-3 text-slate-600"><span className="inline-flex items-center gap-1.5"><Clock size={14} className="text-slate-400" />{x.startTime}–{x.endTime}</span></td>
@@ -137,11 +160,11 @@ export default function AdminExams() {
         )}
       </Card>
 
-      {modalOpen && <ExamFormModal open={modalOpen} onClose={() => setModalOpen(false)} onSave={handleSave} initial={editing} courses={courses} />}
+      {modalOpen && <ExamFormModal open={modalOpen} onClose={() => setModalOpen(false)} onSave={handleSave} initial={editing} courses={courses} saving={saving} />}
       <ConfirmDialog
         open={!!confirmDel}
         onClose={() => setConfirmDel(null)}
-        onConfirm={() => { deleteExam(confirmDel.id); toast('Exam deleted.', 'info') }}
+        onConfirm={doDelete}
         title="Delete exam?"
         message={confirmDel ? `Remove "${confirmDel.title}" from the timetable?` : ''}
         confirmLabel="Delete"

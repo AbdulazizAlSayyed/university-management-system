@@ -18,7 +18,7 @@ export default function StudentClassroom() {
   const { courseId } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
-  const { loading, courses, users, enrollments, announcements, assignments, submitAssignment } = useStudentData()
+  const { loading, loaded, courses, users, enrollments, announcements, assignments, submitAssignment } = useStudentData()
   const { currentUser } = useAuth()
   const { toast } = useToast()
   const course = courses.find((c) => c.id === courseId)
@@ -34,7 +34,6 @@ export default function StudentClassroom() {
   const [classroom, setClassroom] = useState(null)
   const [loadingClassroom, setLoadingClassroom] = useState(true)
 
-<<<<<<< HEAD
   useEffect(() => {
     if (!courseId) return
     let cancelled = false
@@ -44,10 +43,6 @@ export default function StudentClassroom() {
     }).catch(() => { if (!cancelled) setLoadingClassroom(false) })
     return () => { cancelled = true }
   }, [courseId])
-=======
-  const isEnrolled = data.enrollments.some((e) => e.studentId === currentUser.id && e.courseId === courseId && e.status === 'enrolled')
-  const professor = course ? data.users.find((u) => u.id === course.professorId) : null
->>>>>>> Development
 
   const isEnrolled = enrollments.some((e) => e.studentId === currentUser.id && e.courseId === courseId && e.status === 'enrolled')
   const professor = course ? users.find((u) => u.id === course.professorId) : null
@@ -81,7 +76,7 @@ export default function StudentClassroom() {
     navigate({ pathname: `/student/courses/${courseId}`, search: `?tab=${nextTab}` }, { replace: true })
   }
 
-  if (loading) return <LoadingState />
+  if (!loaded && loading) return <LoadingState />
   if (!course || !isEnrolled) {
     return <Card><EmptyState icon={FileText} title="Course unavailable" message="You are not enrolled in this course." action={<Button onClick={() => navigate('/student/courses')}>Back to my courses</Button>} /></Card>
   }

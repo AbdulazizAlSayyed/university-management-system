@@ -1,35 +1,19 @@
-const mongoose = require('mongoose');
-const { Schema } = mongoose;
+import mongoose from 'mongoose'
+const { Schema } = mongoose
 
-const submissionSchema = new Schema({
-  assignmentId: {
-    type: Schema.Types.ObjectId,
-    ref: 'Assignment',
-    required: [true, 'Assignment is required']
+const submissionSchema = new Schema(
+  {
+    assignmentId: { type: Schema.Types.ObjectId, ref: 'Assignment', required: true },
+    studentId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    fileUrl: { type: String, required: true },
+    submittedAt: { type: Date, default: Date.now },
+    grade: String,
+    feedback: String,
   },
-  studentId: {
-    type: Schema.Types.ObjectId,
-    ref: 'User',
-    required: [true, 'Student is required']
-  },
-  fileUrl: {
-    type: String,
-    required: [true, 'Submission file is required']
-  },
-  submittedAt: {
-    type: Date,
-    required: true,
-    default: Date.now
-  },
-  grade: {
-    type: String // set once graded by professor
-  },
-  feedback: {
-    type: String
-  }
-});
+  { timestamps: true }
+)
 
-// A student can only submit once per assignment
-submissionSchema.index({ assignmentId: 1, studentId: 1 }, { unique: true });
+submissionSchema.index({ assignmentId: 1, studentId: 1 }, { unique: true })
+submissionSchema.index({ studentId: 1 })
 
-module.exports = mongoose.model('Submission', submissionSchema);
+export default mongoose.model('Submission', submissionSchema)

@@ -16,6 +16,7 @@ const gradeSchema = new Schema(
 )
 
 gradeSchema.index({ studentId: 1, courseId: 1 }, { unique: true })
+gradeSchema.index({ studentId: 1, status: 1 })
 gradeSchema.set('toJSON', {
   virtuals: true,
   transform(doc, ret) { delete ret._id; delete ret.__v; return ret },

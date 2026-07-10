@@ -10,9 +10,8 @@ export const signup = asyncHandler(async (req, res) => {
 
 export const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body
-  const user = await svc.loginUser(email, password)
-  const token = generateToken(user)
-  res.json({ user: user.toJSON(), token })
+  const { user, token } = await svc.loginUser(email, password)
+  res.json({ user, token })
 })
 
 export const me = asyncHandler(async (req, res) => {
@@ -27,4 +26,19 @@ export const updateMe = asyncHandler(async (req, res) => {
 export const changePassword = asyncHandler(async (req, res) => {
   await svc.changePassword(req.user._id, req.body.currentPassword, req.body.newPassword)
   res.json({ message: 'Password updated successfully' })
+})
+
+export const requestAccount = asyncHandler(async (req, res) => {
+  const result = await svc.requestAccount(req.body)
+  res.status(201).json(result)
+})
+
+export const forgotPassword = asyncHandler(async (req, res) => {
+  await svc.forgotPassword(req.body.email)
+  res.json({ message: 'Reset link sent to your email' })
+})
+
+export const resetPassword = asyncHandler(async (req, res) => {
+  await svc.resetPassword(req.params.token, req.body.password)
+  res.json({ message: 'Password reset successful' })
 })

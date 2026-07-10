@@ -27,6 +27,7 @@ export default function ProfessorDashboard() {
   const myCourseIds = new Set(myCourses.map((c) => c.id))
   const myAssignmentIds = new Set(assignments.filter((a) => myCourseIds.has(a.courseId)).map((a) => a.id))
 
+<<<<<<< HEAD
   useEffect(() => {
     if (!api.loading) {
       professorApi.getDashboard()
@@ -37,6 +38,10 @@ export default function ProfessorDashboard() {
 
   const computedTotalStudents = useMemo(() => {
     const set = new Set(enrollments.filter((e) => myCourseIds.has(e.courseId)).map((e) => e.studentId))
+=======
+  const totalStudents = useMemo(() => {
+    const set = new Set(enrollments.filter((e) => myCourseIds.has(e.courseId) && e.status === 'enrolled').map((e) => e.studentId))
+>>>>>>> Development
     return set.size
   }, [enrollments, myCourses])
 
@@ -85,7 +90,11 @@ export default function ProfessorDashboard() {
                 <CourseCard
                   key={c.id}
                   course={c}
+<<<<<<< HEAD
                   enrolledCount={c.enrolledCount ?? enrollments.filter((e) => e.courseId === c.id).length}
+=======
+                  enrolledCount={enrollments.filter((e) => e.courseId === c.id && e.status === 'enrolled').length}
+>>>>>>> Development
                   onClick={() => navigate(`/professor/courses/${c.id}`)}
                   footer={<Button variant="soft" size="sm" className="w-full" onClick={(e) => { e.stopPropagation(); navigate(`/professor/courses/${c.id}`) }}>Open classroom <ArrowRight size={14} /></Button>}
                 />

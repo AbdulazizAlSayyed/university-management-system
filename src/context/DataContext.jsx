@@ -78,27 +78,85 @@ export function DataProvider({ children }) {
   }, [log, courses])
 
   // ---------------- Enrollments ----------------
+  // True if the student holds a final passing grade (not F) in the course.
+  const hasPassed = useCallback((studentId, courseId) =>
+    grades.some((g) => g.studentId === studentId && g.courseId === courseId && g.status === 'final' && g.letter && g.letter.toUpperCase() !== 'F'),
+  [grades])
+
+  // Prerequisite courses the student has NOT passed yet (returns course codes).
+  const missingPrereqs = useCallback((studentId, course) =>
+    (course.prerequisites || [])
+      .filter((pid) => !hasPassed(studentId, pid))
+      .map((pid) => courses.find((c) => c.id === pid)?.code || pid),
+  [hasPassed, courses])
+
+  // Enroll a student: blocked without prerequisites, waitlisted when full.
+  // Returns { ok, status?, reason?, missing? }
   const enrollStudent = useCallback((studentId, courseId, actorId) => {
-    const exists = enrollments.some((e) => e.studentId === studentId && e.courseId === courseId)
-    if (exists) return false
+    const course = courses.find((x) => x.id === courseId)
+    if (!course) return { ok: false, reason: 'not-found' }
+    const existing = enrollments.find((e) => e.studentId === studentId && e.courseId === courseId)
+    if (existing) return { ok: false, reason: existing.status === 'waitlisted' ? 'already-waitlisted' : 'already-enrolled' }
+
+    const missing = missingPrereqs(studentId, course)
+    if (missing.length) return { ok: false, reason: 'prerequisites', missing }
+
+    const enrolledCount = enrollments.filter((e) => e.courseId === courseId && e.status === 'enrolled').length
+    const isFull = enrolledCount >= course.capacity
+    const status = isFull ? 'waitlisted' : 'enrolled'
+
     setEnrollments((prev) => [
       ...prev,
-      { id: uid('e'), studentId, courseId, enrolledAt: new Date().toISOString().slice(0, 10), status: 'enrolled' },
+      { id: uid('e'), studentId, courseId, enrolledAt: new Date().toISOString().slice(0, 10), status, waitlistedAt: isFull ? new Date().toISOString() : null },
     ])
+<<<<<<< HEAD
     setGrades((prev) => [...prev, { id: uid('g'), studentId, courseId, letter: null, points: null, score: null, status: 'in-progress' }])
     const c = courses.find((x) => x.id === courseId)
+=======
+    // create an in-progress grade record only for real enrollments
+    if (!isFull) setGrades((prev) => [...prev, { id: uid('g'), studentId, courseId, letter: null, points: null, score: null, status: 'in-progress' }])
+>>>>>>> Development
     const s = users.find((x) => x.id === studentId)
-    log(actorId || studentId, 'create', 'Enrollment', `${s ? s.firstName + ' ' + s.lastName : studentId} enrolled in ${c ? c.code : courseId}`)
-    return true
-  }, [enrollments, courses, users, log])
+    log(actorId || studentId, 'create', 'Enrollment', isFull
+      ? `${s ? s.firstName + ' ' + s.lastName : studentId} joined the waitlist of ${course.code} (course full)`
+      : `${s ? s.firstName + ' ' + s.lastName : studentId} enrolled in ${course.code}`)
+    return { ok: true, status }
+  }, [enrollments, courses, users, missingPrereqs, log])
 
+  // Drop / leave waitlist. Freed seats auto-promote the first waitlisted student (FIFO).
   const dropStudent = useCallback((studentId, courseId, actorId) => {
-    setEnrollments((prev) => prev.filter((e) => !(e.studentId === studentId && e.courseId === courseId)))
-    setGrades((prev) => prev.filter((g) => !(g.studentId === studentId && g.courseId === courseId && g.status === 'in-progress')))
+    const removed = enrollments.find((e) => e.studentId === studentId && e.courseId === courseId)
+    if (!removed) return
+    let promoted = null
+    if (removed.status === 'enrolled') {
+      promoted = enrollments
+        .filter((e) => e.courseId === courseId && e.status === 'waitlisted')
+        .sort((a, b) => new Date(a.waitlistedAt || 0) - new Date(b.waitlistedAt || 0))[0] || null
+    }
+    setEnrollments((prev) => prev
+      .filter((e) => !(e.studentId === studentId && e.courseId === courseId))
+      .map((e) => (promoted && e.id === promoted.id
+        ? { ...e, status: 'enrolled', waitlistedAt: null, enrolledAt: new Date().toISOString().slice(0, 10) }
+        : e)))
+    setGrades((prev) => {
+      let next = prev.filter((g) => !(g.studentId === studentId && g.courseId === courseId && g.status === 'in-progress'))
+      if (promoted && !next.some((g) => g.studentId === promoted.studentId && g.courseId === courseId && g.status === 'in-progress')) {
+        next = [...next, { id: uid('g'), studentId: promoted.studentId, courseId, letter: null, points: null, score: null, status: 'in-progress' }]
+      }
+      return next
+    })
     const c = courses.find((x) => x.id === courseId)
     const s = users.find((x) => x.id === studentId)
-    log(actorId || studentId, 'delete', 'Enrollment', `${s ? s.firstName + ' ' + s.lastName : studentId} dropped ${c ? c.code : courseId}`)
-  }, [courses, users, log])
+    log(actorId || studentId, 'delete', 'Enrollment', `${s ? s.firstName + ' ' + s.lastName : studentId} ${removed.status === 'waitlisted' ? 'left the waitlist of' : 'dropped'} ${c ? c.code : courseId}`)
+    if (promoted) {
+      setNotifications((prev) => [
+        { id: uid('n'), userId: promoted.studentId, type: 'enrollment', title: `Enrolled in ${c ? c.code : 'a course'}`, body: `A seat opened up in ${c ? `${c.code} — ${c.name}` : 'a course'}. You were moved off the waitlist and are now enrolled.`, createdAt: new Date().toISOString(), read: false, link: '/student/courses' },
+        ...prev,
+      ])
+      const p = users.find((x) => x.id === promoted.studentId)
+      log('u-admin', 'update', 'Enrollment', `${p ? p.firstName + ' ' + p.lastName : promoted.studentId} promoted from the waitlist of ${c ? c.code : courseId}`)
+    }
+  }, [enrollments, courses, users, log])
 
   // ---------------- Materials ----------------
   const addMaterial = useCallback((data, actorId) => {
@@ -239,7 +297,7 @@ export function DataProvider({ children }) {
       exams, announcements, attendance, notifications, calendarEvents, auditLogs,
       addUser, updateUser, setUserStatus, deleteUser,
       addCourse, updateCourse, deleteCourse,
-      enrollStudent, dropStudent,
+      enrollStudent, dropStudent, hasPassed, missingPrereqs,
       addMaterial, deleteMaterial,
       addAssignment, updateAssignment, deleteAssignment,
       submitAssignment, gradeSubmission,
@@ -254,7 +312,7 @@ export function DataProvider({ children }) {
       users, courses, enrollments, materials, assignments, submissions, grades,
       exams, announcements, attendance, notifications, calendarEvents, auditLogs,
       addUser, updateUser, setUserStatus, deleteUser, addCourse, updateCourse, deleteCourse,
-      enrollStudent, dropStudent, addMaterial, deleteMaterial, addAssignment, updateAssignment,
+      enrollStudent, dropStudent, hasPassed, missingPrereqs, addMaterial, deleteMaterial, addAssignment, updateAssignment,
       deleteAssignment, submitAssignment, gradeSubmission, setFinalGrade, addExam, updateExam,
       deleteExam, addAnnouncement, deleteAnnouncement, saveAttendance, markNotificationRead,
       markAllNotificationsRead, addCalendarEvent, deleteCalendarEvent,

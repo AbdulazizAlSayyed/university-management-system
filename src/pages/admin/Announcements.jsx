@@ -1,34 +1,35 @@
 import { useState } from 'react'
-import { Megaphone, Plus, Trash2, Pin, Globe, Search } from 'lucide-react'
+import { Megaphone, Plus, Trash2, Pin, Globe } from 'lucide-react'
 import { useData } from '../../context/DataContext'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
 import {
-  PageHeader, Card, Button, IconButton, Badge, Modal, FormField, Input, Textarea, EmptyState, SearchInput,
+  PageHeader, Card, Button, IconButton, Badge, Modal, FormField, Input, Textarea, EmptyState,
 } from '../../components/ui'
 import { formatDate, timeAgo } from '../../utils/helpers'
 
 export default function AdminAnnouncements() {
-  const { announcements, addAnnouncement, deleteAnnouncement } = useData()
-  const { currentUser } = useAuth()
   const { toast } = useToast()
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [form, setForm] = useState({ title: '', body: '', pinned: false })
 
-  const q = search.toLowerCase()
   const systemAnns = announcements
     .filter((a) => a.scope === 'system')
-    .filter((a) => !q || a.title.toLowerCase().includes(q) || a.body.toLowerCase().includes(q))
     .sort((a, b) => (b.pinned - a.pinned) || new Date(b.createdAt) - new Date(a.createdAt))
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault()
     if (!form.title || !form.body) return toast('Please enter a title and message.', 'error')
-    addAnnouncement({ ...form, scope: 'system', courseId: null, authorId: currentUser.id }, currentUser.id)
-    toast('Announcement posted to all users.', 'success')
-    setForm({ title: '', body: '', pinned: false })
-    setModalOpen(false)
+    setSaving(true)
+    try { await adminApi.createAnnouncement(form); toast('Announcement posted to all users.', 'success'); setForm({ title: '', body: '', pinned: false }); setModalOpen(false); load() }
+    catch (er) { toast(adminApi.errMsg(er), 'error') } finally { setSaving(false) }
+  }
+  const remove = async (id) => {
+    try { await adminApi.deleteAnnouncement(id); toast('Announcement deleted.', 'info'); load() } catch (e) { toast(adminApi.errMsg(e), 'error') }
   }
 
   return (
@@ -40,47 +41,37 @@ export default function AdminAnnouncements() {
         actions={<Button icon={Plus} onClick={() => setModalOpen(true)}>New announcement</Button>}
       />
 
-      <Card className="mb-5 p-4">
-        <SearchInput placeholder="Search announcements…" value={search} onChange={(e) => setSearch(e.target.value)} />
-      </Card>
-
       {systemAnns.length === 0 ? (
-        <Card><EmptyState icon={Megaphone} title={search ? 'No announcements match' : 'No announcements'} message={search ? 'Try a different search term.' : 'Post your first system-wide announcement.'} action={search ? null : <Button icon={Plus} onClick={() => setModalOpen(true)}>New announcement</Button>} /></Card>
+        <Card><EmptyState icon={Megaphone} title="No announcements" message="Post your first system-wide announcement." action={<Button icon={Plus} onClick={() => setModalOpen(true)}>New announcement</Button>} /></Card>
       ) : (
         <div className="space-y-4">
           {systemAnns.map((a) => (
-            <Card key={a.id} className="group p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-3 min-w-0">
+            <Card key={a.id} className="p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3">
                   <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-600">
                     <Globe size={19} />
                   </span>
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="truncate font-bold text-slate-800">{a.title}</h3>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-bold text-slate-800">{a.title}</h3>
                       {a.pinned && <Badge tone="amber"><Pin size={11} /> Pinned</Badge>}
                     </div>
                     <p className="mt-1 text-sm text-slate-600">{a.body}</p>
                     <p className="mt-2 text-xs text-slate-400">Posted {formatDate(a.createdAt)} · {timeAgo(a.createdAt)}</p>
                   </div>
                 </div>
-                <IconButton icon={Trash2} title="Delete" onClick={() => { deleteAnnouncement(a.id); toast('Announcement deleted.', 'info') }} className="sm:opacity-0 sm:group-hover:opacity-100 hover:text-red-600" />
+                <IconButton icon={Trash2} title="Delete" onClick={() => { deleteAnnouncement(a.id); toast('Announcement deleted.', 'info') }} className="hover:text-red-600" />
               </div>
             </Card>
           ))}
         </div>
       )}
-
-      <Modal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title="New System Announcement"
-        subtitle="This will be visible to every user."
-        footer={<><Button variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button><Button onClick={submit}>Post announcement</Button></>}
-      >
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="New System Announcement" subtitle="This will be visible to every user."
+        footer={<><Button variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button><Button onClick={submit} disabled={saving}>{saving ? 'Posting...' : 'Post announcement'}</Button></>}>
         <form onSubmit={submit} className="space-y-4">
           <FormField label="Title" required><Input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="e.g. Registration Deadline" /></FormField>
-          <FormField label="Message" required><Textarea value={form.body} onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))} placeholder="Write your announcement…" className="min-h-[120px]" /></FormField>
+          <FormField label="Message" required><Textarea value={form.body} onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))} placeholder="Write your announcement..." className="min-h-[120px]" /></FormField>
           <label className="flex items-center gap-2 text-sm font-medium text-slate-600">
             <input type="checkbox" checked={form.pinned} onChange={(e) => setForm((f) => ({ ...f, pinned: e.target.checked }))} className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
             Pin this announcement to the top

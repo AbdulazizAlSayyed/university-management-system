@@ -34,6 +34,7 @@ export default function StudentClassroom() {
   const [classroom, setClassroom] = useState(null)
   const [loadingClassroom, setLoadingClassroom] = useState(true)
 
+<<<<<<< HEAD
   useEffect(() => {
     if (!courseId) return
     let cancelled = false
@@ -43,6 +44,10 @@ export default function StudentClassroom() {
     }).catch(() => { if (!cancelled) setLoadingClassroom(false) })
     return () => { cancelled = true }
   }, [courseId])
+=======
+  const isEnrolled = data.enrollments.some((e) => e.studentId === currentUser.id && e.courseId === courseId && e.status === 'enrolled')
+  const professor = course ? data.users.find((u) => u.id === course.professorId) : null
+>>>>>>> Development
 
   const isEnrolled = enrollments.some((e) => e.studentId === currentUser.id && e.courseId === courseId && e.status === 'enrolled')
   const professor = course ? users.find((u) => u.id === course.professorId) : null

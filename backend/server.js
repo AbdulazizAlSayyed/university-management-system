@@ -1,11 +1,16 @@
-require('dotenv').config();
-const connectDB = require('./src/config/db');
-const app = require('./src/app');
+import 'dotenv/config'
+import app from './src/app.js'
+import { connectDB } from './src/config/db.js'
 
-connectDB();
+const PORT = process.env.PORT || 5000
 
-const PORT = process.env.PORT || 5000;
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+connectDB()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`UMS API running on http://localhost:${PORT}`)
+    })
+  })
+  .catch((err) => {
+    console.error('Failed to start server:', err.message)
+    process.exit(1)
+  })

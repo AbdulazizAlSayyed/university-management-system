@@ -37,7 +37,7 @@ export default function ProfessorCourses() {
             <CourseCard
               key={c.id}
               course={c}
-              enrolledCount={enrollments.filter((e) => e.courseId === c.id).length}
+              enrolledCount={enrollments.filter((e) => e.courseId === c.id && e.status === 'enrolled').length}
               onClick={() => navigate(`/professor/courses/${c.id}`)}
               footer={<Button variant="soft" size="sm" className="w-full" onClick={(e) => { e.stopPropagation(); navigate(`/professor/courses/${c.id}`) }}>Open classroom <ArrowRight size={14} /></Button>}
             />

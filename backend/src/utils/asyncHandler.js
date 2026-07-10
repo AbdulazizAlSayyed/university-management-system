@@ -1,1 +1,3 @@
-// asyncHandler: wraps async route handlers and forwards errors to next().
+// Wraps async route handlers and forwards errors to next().
+export const asyncHandler = (fn) => (req, res, next) =>
+  Promise.resolve(fn(req, res, next)).catch(next)

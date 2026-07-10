@@ -10,7 +10,7 @@ import useProfessorData from '../../hooks/useProfessorData'
 import { useToast } from '../../context/ToastContext'
 import {
   Card, CardHeader, Button, IconButton, Badge, StatusBadge, Avatar, Tabs, Modal,
-  ConfirmDialog, FormField, Input, Textarea, Select, EmptyState, FileDropzone,
+  ConfirmDialog, FormField, Input, Textarea, Select, EmptyState, FileDropzone, DatePicker,
 } from '../../components/ui'
 import {
   fullName, formatDate, timeAgo, fileTypeMeta, scoreToLetter, gradeColor, classNames,
@@ -443,7 +443,7 @@ function AssignmentsTab({ course }) {
           <FormField label="Title" required><Input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="e.g. Build a REST API" /></FormField>
           <FormField label="Description"><Textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} /></FormField>
           <div className="grid gap-4 sm:grid-cols-2">
-            <FormField label="Due date" required><Input type="date" value={form.dueDate} onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))} /></FormField>
+            <FormField label="Due date" required><DatePicker value={form.dueDate} onChange={(v) => setForm((f) => ({ ...f, dueDate: v }))} /></FormField>
             <FormField label="Max score"><Input type="number" value={form.maxScore} onChange={(e) => setForm((f) => ({ ...f, maxScore: e.target.value }))} /></FormField>
           </div>
           <FormField label="Attachment (optional)">
@@ -557,7 +557,7 @@ function AttendanceTab({ course, roster }) {
         footer={<><Button variant="secondary" onClick={() => setOpen(false)}>Cancel</Button><Button icon={Save} onClick={save}>Save attendance</Button></>}>
         <form onSubmit={save} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
-            <FormField label="Date"><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></FormField>
+            <FormField label="Date"><DatePicker value={date} onChange={(v) => setDate(v)} /></FormField>
             <FormField label="Topic"><Input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="Lecture topic" /></FormField>
           </div>
           <div className="rounded-xl border border-slate-200">

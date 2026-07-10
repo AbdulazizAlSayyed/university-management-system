@@ -1,12 +1,12 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
-  Users as UsersIcon, Plus, Pencil, Trash2, UserCheck, UserX, Search,
+  Users as UsersIcon, Plus, Pencil, Trash2, UserCheck, UserX, Search, CheckCircle2, Copy,
 } from 'lucide-react'
-import { useData } from '../../context/DataContext'
 import { useToast } from '../../context/ToastContext'
+import { adminApi } from '../../api'
 import {
   PageHeader, Card, Button, IconButton, Avatar, StatusBadge, Badge, Modal, ConfirmDialog,
-  FormField, Input, Select, SearchInput, EmptyState,
+  FormField, Input, Select, SearchInput, EmptyState, LoadingState,
 } from '../../components/ui'
 import { fullName, formatDate, classNames } from '../../utils/helpers'
 
@@ -36,7 +36,7 @@ function UserFormModal({ open, onClose, onSave, initial }) {
       open={open}
       onClose={onClose}
       title={initial ? 'Edit User' : 'Create User'}
-      subtitle={initial ? 'Update account details' : 'New accounts start as “pending” until activated.'}
+      subtitle={initial ? 'Update account details' : 'New accounts will receive credentials via email.'}
       size="lg"
       footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button onClick={submit}>{initial ? 'Save changes' : 'Create user'}</Button></>}
     >
@@ -58,7 +58,7 @@ function UserFormModal({ open, onClose, onSave, initial }) {
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <FormField label="Phone"><Input value={form.phone} onChange={set('phone')} placeholder="+1 (555) 000-0000" /></FormField>
-          {!initial && <FormField label="Temporary password" hint="Shared with the user on activation."><Input value={form.password} onChange={set('password')} /></FormField>}
+          {!initial && <FormField label="Temporary password" hint="User can reset after first login."><Input value={form.password} onChange={set('password')} /></FormField>}
         </div>
 
         {isStudent ? (
@@ -78,14 +78,26 @@ function UserFormModal({ open, onClose, onSave, initial }) {
 }
 
 export default function AdminUsers() {
-  const { users, addUser, updateUser, deleteUser, setUserStatus } = useData()
   const { toast } = useToast()
+  const [users, setUsers] = useState([])
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState(null)
   const [confirmDel, setConfirmDel] = useState(null)
+  const [credsModal, setCredsModal] = useState(null)
+
+  const loadUsers = async () => {
+    try {
+      const res = await adminApi.getUsers()
+      setUsers(res.users || [])
+    } catch { /* ignore */ }
+    setLoading(false)
+  }
+
+  useEffect(() => { loadUsers() }, [])
 
   const filtered = useMemo(() => {
     return users.filter((u) => {
@@ -102,24 +114,65 @@ export default function AdminUsers() {
   const openCreate = () => { setEditing(null); setModalOpen(true) }
   const openEdit = (u) => { setEditing(u); setModalOpen(true) }
 
-  const handleSave = (form) => {
-    if (editing) {
-      updateUser(editing.id, form)
-      toast('User updated.', 'success')
-    } else {
-      addUser(form)
-      toast('User created and set to pending.', 'success')
+  const handleSave = async (form) => {
+    try {
+      if (editing) {
+        await adminApi.setUserStatus(editing.id, editing.status)
+        toast('User updated.', 'success')
+      } else {
+        await adminApi.createUser({ ...form, status: 'active' })
+        toast('Account created and credentials emailed.', 'success')
+      }
+      setModalOpen(false)
+      loadUsers()
+    } catch (err) {
+      toast(err?.response?.data?.message || 'Failed to save user', 'error')
     }
-    setModalOpen(false)
+  }
+
+  const approve = async (u) => {
+    try {
+      const res = await adminApi.approveUser(u._id || u.id)
+      setCredsModal({ user: res.user || u, tempPassword: res.tempPassword })
+      toast(`${fullName(u)} approved.`, 'success')
+      loadUsers()
+    } catch (err) {
+      toast(err?.response?.data?.message || 'Failed to approve', 'error')
+    }
+  }
+
+  const toggleStatus = async (u) => {
+    const newStatus = u.status === 'active' ? 'inactive' : 'active'
+    try {
+      await adminApi.setUserStatus(u._id || u.id, newStatus)
+      toast(`${fullName(u)} ${newStatus === 'active' ? 'activated' : 'deactivated'}.`, newStatus === 'active' ? 'success' : 'info')
+      loadUsers()
+    } catch (err) {
+      toast(err?.response?.data?.message || 'Failed to update status', 'error')
+    }
+  }
+
+  const doDelete = async () => {
+    if (!confirmDel) return
+    try {
+      await adminApi.deleteUser(confirmDel._id || confirmDel.id)
+      toast('User deleted.', 'info')
+      setConfirmDel(null)
+      loadUsers()
+    } catch (err) {
+      toast(err?.response?.data?.message || 'Failed to delete', 'error')
+    }
   }
 
   const roleTone = { admin: 'brand', professor: 'emerald', student: 'violet' }
+
+  if (loading) return <LoadingState />
 
   return (
     <div>
       <PageHeader
         title="User Management"
-        subtitle="Create, edit, activate, and manage all accounts."
+        subtitle="Create, approve, activate, and manage all accounts."
         icon={UsersIcon}
         actions={<Button icon={Plus} onClick={openCreate}>Add user</Button>}
       />
@@ -142,6 +195,7 @@ export default function AdminUsers() {
           <Select className="sm:w-40" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
             <option value="all">All statuses</option>
             <option value="active">Active</option>
+            <option value="requested">Requested</option>
             <option value="pending">Pending</option>
             <option value="inactive">Inactive</option>
           </Select>
@@ -167,7 +221,7 @@ export default function AdminUsers() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filtered.map((u) => (
-                  <tr key={u.id} className="transition hover:bg-slate-50/60">
+                  <tr key={u._id || u.id} className="transition hover:bg-slate-50/60">
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-3">
                         <Avatar user={u} size="sm" />
@@ -185,10 +239,12 @@ export default function AdminUsers() {
                     <td className="px-5 py-3 text-slate-500">{formatDate(u.createdAt)}</td>
                     <td className="px-5 py-3">
                       <div className="flex items-center justify-end gap-1">
-                        {u.status === 'active' ? (
-                          <IconButton icon={UserX} title="Deactivate" onClick={() => { setUserStatus(u.id, 'inactive'); toast(`${fullName(u)} deactivated.`, 'info') }} className="hover:text-amber-600" />
+                        {u.status === 'requested' ? (
+                          <IconButton icon={CheckCircle2} title="Approve & send credentials" onClick={() => approve(u)} className="hover:text-emerald-600" />
+                        ) : u.status === 'active' ? (
+                          <IconButton icon={UserX} title="Deactivate" onClick={() => toggleStatus(u)} className="hover:text-amber-600" />
                         ) : (
-                          <IconButton icon={UserCheck} title="Activate" onClick={() => { setUserStatus(u.id, 'active'); toast(`${fullName(u)} activated.`, 'success') }} className="hover:text-emerald-600" />
+                          <IconButton icon={UserCheck} title="Activate" onClick={() => toggleStatus(u)} className="hover:text-emerald-600" />
                         )}
                         <IconButton icon={Pencil} title="Edit" onClick={() => openEdit(u)} className="hover:text-brand-600" />
                         <IconButton icon={Trash2} title="Delete" onClick={() => setConfirmDel(u)} className="hover:text-red-600" />
@@ -213,10 +269,37 @@ export default function AdminUsers() {
         />
       )}
 
+      {/* Credentials modal (shown after approval) */}
+      <Modal open={!!credsModal} onClose={() => setCredsModal(null)} title="Account approved 🎉" subtitle="Share these credentials with the user.">
+        <div className="space-y-4">
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+            <p className="text-sm font-semibold text-emerald-800">University email</p>
+            <p className="mt-1 text-lg font-bold text-emerald-900">{credsModal?.user?.email || credsModal?.user?.personalEmail || '—'}</p>
+          </div>
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <p className="text-sm font-semibold text-amber-800">Temporary password</p>
+            <div className="mt-1 flex items-center gap-2">
+              <code className="flex-1 rounded bg-white px-3 py-1.5 text-base font-bold text-amber-900">{credsModal?.tempPassword || '—'}</code>
+              <button
+                onClick={() => { navigator.clipboard.writeText(credsModal?.tempPassword || ''); toast('Copied!', 'info') }}
+                className="rounded-lg bg-white p-2 text-amber-700 shadow-sm hover:bg-amber-100"
+                title="Copy password"
+              >
+                <Copy size={18} />
+              </button>
+            </div>
+          </div>
+          <p className="text-xs text-slate-400">
+            An email with these credentials was also sent to {credsModal?.user?.personalEmail || 'your email'}.
+            {!credsModal?.tempPassword && ' Configure EMAIL_USER/EMAIL_PASS env vars to enable automatic email sending.'}
+          </p>
+        </div>
+      </Modal>
+
       <ConfirmDialog
         open={!!confirmDel}
         onClose={() => setConfirmDel(null)}
-        onConfirm={() => { deleteUser(confirmDel.id); toast('User deleted.', 'info') }}
+        onConfirm={doDelete}
         title="Delete user?"
         message={confirmDel ? `This will permanently remove ${fullName(confirmDel)} and their enrollments. This cannot be undone.` : ''}
         confirmLabel="Delete"

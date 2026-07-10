@@ -14,6 +14,7 @@ export const NAV = {
     { to: '/admin/calendar', label: 'Academic Calendar', icon: CalendarDays },
     { to: '/admin/announcements', label: 'Announcements', icon: Megaphone },
     { to: '/admin/audit', label: 'Audit Log', icon: ScrollText },
+    { to: '/admin/notifications', label: 'Notifications', icon: Bell },
   ],
   professor: [
     { to: '/professor/dashboard', label: 'Dashboard', icon: LayoutDashboard },

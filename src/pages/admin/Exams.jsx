@@ -1,10 +1,10 @@
 import { useState, useMemo } from 'react'
-import { CalendarClock, Plus, Pencil, Trash2, MapPin, Clock } from 'lucide-react'
+import { CalendarClock, Plus, Pencil, Trash2, MapPin, Clock, Search } from 'lucide-react'
 import { useData } from '../../context/DataContext'
 import { useToast } from '../../context/ToastContext'
 import {
   PageHeader, Card, Button, IconButton, Badge, Modal, ConfirmDialog, FormField,
-  Input, Select, EmptyState,
+  Input, Select, EmptyState, SearchInput, DatePicker,
 } from '../../components/ui'
 import { formatDate } from '../../utils/helpers'
 
@@ -47,7 +47,7 @@ function ExamFormModal({ open, onClose, onSave, initial, courses }) {
           <FormField label="Type"><Select value={form.type} onChange={set('type')}><option>Quiz</option><option>Midterm</option><option>Final</option></Select></FormField>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <FormField label="Date" required error={errors.date}><Input type="date" value={form.date} onChange={set('date')} error={errors.date} /></FormField>
+          <FormField label="Date" required error={errors.date}><DatePicker value={form.date} onChange={(v) => setForm((f) => ({ ...f, date: v }))} /></FormField>
           <FormField label="Room" required error={errors.room}><Input value={form.room} onChange={set('room')} placeholder="Exam Hall 1" error={errors.room} /></FormField>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -65,9 +65,19 @@ export default function AdminExams() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState(null)
   const [confirmDel, setConfirmDel] = useState(null)
+  const [search, setSearch] = useState('')
+  const [typeFilter, setTypeFilter] = useState('all')
 
   const courseById = useMemo(() => Object.fromEntries(courses.map((c) => [c.id, c])), [courses])
-  const sorted = [...exams].sort((a, b) => new Date(a.date) - new Date(b.date))
+  const q = search.toLowerCase()
+  const sorted = [...exams]
+    .filter((x) => typeFilter === 'all' || x.type === typeFilter)
+    .filter((x) => {
+      if (!q) return true
+      const c = courseById[x.courseId]
+      return x.title.toLowerCase().includes(q) || (c?.code || '').toLowerCase().includes(q) || (c?.name || '').toLowerCase().includes(q)
+    })
+    .sort((a, b) => new Date(a.date) - new Date(b.date))
 
   const openCreate = () => { setEditing(null); setModalOpen(true) }
   const openEdit = (x) => { setEditing(x); setModalOpen(true) }
@@ -88,9 +98,21 @@ export default function AdminExams() {
         actions={<Button icon={Plus} onClick={openCreate}>Schedule exam</Button>}
       />
 
+      <Card className="mb-5 p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <SearchInput className="flex-1" placeholder="Search exams by title or course…" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Select className="sm:w-40" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+            <option value="all">All types</option>
+            <option value="Quiz">Quiz</option>
+            <option value="Midterm">Midterm</option>
+            <option value="Final">Final</option>
+          </Select>
+        </div>
+      </Card>
+
       <Card className="overflow-hidden">
         {sorted.length === 0 ? (
-          <EmptyState icon={CalendarClock} title="No exams scheduled" message="Schedule your first exam to build the timetable." action={<Button icon={Plus} onClick={openCreate}>Schedule exam</Button>} />
+          <EmptyState icon={CalendarClock} title={search || typeFilter !== 'all' ? 'No exams match' : 'No exams scheduled'} message={search || typeFilter !== 'all' ? 'Try different filters.' : 'Schedule your first exam to build the timetable.'} action={search || typeFilter !== 'all' ? null : <Button icon={Plus} onClick={openCreate}>Schedule exam</Button>} />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -99,9 +121,9 @@ export default function AdminExams() {
                   <th className="px-5 py-3">Exam</th>
                   <th className="px-5 py-3">Course</th>
                   <th className="px-5 py-3">Type</th>
-                  <th className="px-5 py-3">Date</th>
-                  <th className="px-5 py-3">Time</th>
-                  <th className="px-5 py-3">Room</th>
+                  <th className="px-5 py-3 whitespace-nowrap">Date</th>
+                  <th className="px-5 py-3 whitespace-nowrap">Time</th>
+                  <th className="px-5 py-3 whitespace-nowrap">Room</th>
                   <th className="px-5 py-3 text-right">Actions</th>
                 </tr>
               </thead>
@@ -113,9 +135,9 @@ export default function AdminExams() {
                       <td className="px-5 py-3 font-semibold text-slate-700">{x.title}</td>
                       <td className="px-5 py-3"><Badge tone="brand">{c?.code || '—'}</Badge></td>
                       <td className="px-5 py-3"><Badge tone={typeTone[x.type] || 'slate'}>{x.type}</Badge></td>
-                      <td className="px-5 py-3 text-slate-600">{formatDate(x.date, { weekday: 'short', month: 'short', day: 'numeric' })}</td>
-                      <td className="px-5 py-3 text-slate-600"><span className="inline-flex items-center gap-1.5"><Clock size={14} className="text-slate-400" />{x.startTime}–{x.endTime}</span></td>
-                      <td className="px-5 py-3 text-slate-600"><span className="inline-flex items-center gap-1.5"><MapPin size={14} className="text-slate-400" />{x.room}</span></td>
+                      <td className="px-5 py-3 whitespace-nowrap text-slate-600">{formatDate(x.date, { weekday: 'short', month: 'short', day: 'numeric' })}</td>
+                      <td className="px-5 py-3 whitespace-nowrap text-slate-600"><span className="inline-flex items-center gap-1.5"><Clock size={14} className="text-slate-400" />{x.startTime}–{x.endTime}</span></td>
+                      <td className="px-5 py-3 whitespace-nowrap text-slate-600"><span className="inline-flex items-center gap-1.5"><MapPin size={14} className="text-slate-400" />{x.room}</span></td>
                       <td className="px-5 py-3">
                         <div className="flex items-center justify-end gap-1">
                           <IconButton icon={Pencil} title="Edit" onClick={() => openEdit(x)} className="hover:text-brand-600" />
@@ -130,6 +152,8 @@ export default function AdminExams() {
           </div>
         )}
       </Card>
+
+      <p className="mt-3 text-xs text-slate-400">Showing {sorted.length} of {exams.length} exams</p>
 
       {modalOpen && <ExamFormModal open={modalOpen} onClose={() => setModalOpen(false)} onSave={handleSave} initial={editing} courses={courses} />}
       <ConfirmDialog

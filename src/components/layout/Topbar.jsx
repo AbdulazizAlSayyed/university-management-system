@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Menu, Bell, ChevronDown, User, LogOut, CheckCheck } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
-import { studentApi, professorApi } from '../../api'
+import { studentApi, professorApi, adminApi } from '../../api'
 import { Avatar } from '../ui'
 import { ROLE_LABEL, PROFILE_LINK } from './navConfig'
 import { fullName, timeAgo, classNames } from '../../utils/helpers'
@@ -26,7 +26,7 @@ export default function Topbar({ onMenu }) {
   useOutsideClick(notifRef, () => setNotifOpen(false))
   useOutsideClick(menuRef, () => setMenuOpen(false))
 
-  const api = currentUser?.role === 'professor' ? professorApi : studentApi
+  const api = currentUser?.role === 'professor' ? professorApi : currentUser?.role === 'admin' ? adminApi : studentApi
 
   const loadNotifs = useCallback(async () => {
     try {

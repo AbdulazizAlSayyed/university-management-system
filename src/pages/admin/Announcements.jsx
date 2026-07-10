@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { Megaphone, Plus, Trash2, Pin, Globe } from 'lucide-react'
+import { Megaphone, Plus, Trash2, Pin, Globe, Search } from 'lucide-react'
 import { useData } from '../../context/DataContext'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
 import {
-  PageHeader, Card, Button, IconButton, Badge, Modal, FormField, Input, Textarea, EmptyState,
+  PageHeader, Card, Button, IconButton, Badge, Modal, FormField, Input, Textarea, EmptyState, SearchInput,
 } from '../../components/ui'
 import { formatDate, timeAgo } from '../../utils/helpers'
 
@@ -13,10 +13,13 @@ export default function AdminAnnouncements() {
   const { currentUser } = useAuth()
   const { toast } = useToast()
   const [modalOpen, setModalOpen] = useState(false)
+  const [search, setSearch] = useState('')
   const [form, setForm] = useState({ title: '', body: '', pinned: false })
 
+  const q = search.toLowerCase()
   const systemAnns = announcements
     .filter((a) => a.scope === 'system')
+    .filter((a) => !q || a.title.toLowerCase().includes(q) || a.body.toLowerCase().includes(q))
     .sort((a, b) => (b.pinned - a.pinned) || new Date(b.createdAt) - new Date(a.createdAt))
 
   const submit = (e) => {
@@ -37,27 +40,31 @@ export default function AdminAnnouncements() {
         actions={<Button icon={Plus} onClick={() => setModalOpen(true)}>New announcement</Button>}
       />
 
+      <Card className="mb-5 p-4">
+        <SearchInput placeholder="Search announcements…" value={search} onChange={(e) => setSearch(e.target.value)} />
+      </Card>
+
       {systemAnns.length === 0 ? (
-        <Card><EmptyState icon={Megaphone} title="No announcements" message="Post your first system-wide announcement." action={<Button icon={Plus} onClick={() => setModalOpen(true)}>New announcement</Button>} /></Card>
+        <Card><EmptyState icon={Megaphone} title={search ? 'No announcements match' : 'No announcements'} message={search ? 'Try a different search term.' : 'Post your first system-wide announcement.'} action={search ? null : <Button icon={Plus} onClick={() => setModalOpen(true)}>New announcement</Button>} /></Card>
       ) : (
         <div className="space-y-4">
           {systemAnns.map((a) => (
-            <Card key={a.id} className="p-5">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-3">
+            <Card key={a.id} className="group p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3 min-w-0">
                   <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-600">
                     <Globe size={19} />
                   </span>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-bold text-slate-800">{a.title}</h3>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="truncate font-bold text-slate-800">{a.title}</h3>
                       {a.pinned && <Badge tone="amber"><Pin size={11} /> Pinned</Badge>}
                     </div>
                     <p className="mt-1 text-sm text-slate-600">{a.body}</p>
                     <p className="mt-2 text-xs text-slate-400">Posted {formatDate(a.createdAt)} · {timeAgo(a.createdAt)}</p>
                   </div>
                 </div>
-                <IconButton icon={Trash2} title="Delete" onClick={() => { deleteAnnouncement(a.id); toast('Announcement deleted.', 'info') }} className="hover:text-red-600" />
+                <IconButton icon={Trash2} title="Delete" onClick={() => { deleteAnnouncement(a.id); toast('Announcement deleted.', 'info') }} className="sm:opacity-0 sm:group-hover:opacity-100 hover:text-red-600" />
               </div>
             </Card>
           ))}

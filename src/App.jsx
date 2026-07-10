@@ -22,6 +22,7 @@ import AdminExams from './pages/admin/Exams'
 import AdminCalendar from './pages/admin/Calendar'
 import AdminAnnouncements from './pages/admin/Announcements'
 import AdminAudit from './pages/admin/Audit'
+import AdminNotifications from './pages/admin/Notifications'
 
 // Professor
 import ProfessorDashboard from './pages/professor/Dashboard'
@@ -78,6 +79,7 @@ export default function App() {
         <Route path="calendar" element={<AdminCalendar />} />
         <Route path="announcements" element={<AdminAnnouncements />} />
         <Route path="audit" element={<AdminAudit />} />
+        <Route path="notifications" element={<AdminNotifications />} />
         <Route path="profile" element={<Profile />} />
       </Route>
 

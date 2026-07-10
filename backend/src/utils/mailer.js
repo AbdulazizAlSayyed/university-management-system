@@ -1,10 +1,14 @@
 const nodemailer = require('nodemailer');
 
+const SMTP_HOST = process.env.SMTP_HOST || 'smtp.gmail.com';
+const SMTP_PORT = Number(process.env.SMTP_PORT) || 587;
 const hasEmailConfig = !!(process.env.EMAIL_USER && process.env.EMAIL_PASS);
 
 const transporter = hasEmailConfig
   ? nodemailer.createTransport({
-      service: 'gmail',
+      host: SMTP_HOST,
+      port: SMTP_PORT,
+      secure: SMTP_PORT === 465,
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
@@ -15,7 +19,14 @@ const transporter = hasEmailConfig
 const SENDER = hasEmailConfig ? `"UniHub" <${process.env.EMAIL_USER}>` : null;
 
 async function maybeSendMail(opts) {
-  if (!transporter) return;
+  if (!transporter) {
+    console.log('--- EMAIL (not sent — configure EMAIL_USER/EMAIL_PASS env vars) ---');
+    console.log('To:', opts.to);
+    console.log('Subject:', opts.subject);
+    console.log('Body (text):', opts.text || '(html only)');
+    console.log('----------------------------------------------------------------');
+    return;
+  }
   try { await transporter.sendMail({ from: SENDER, ...opts }); } catch { /* ignore */ }
 }
 

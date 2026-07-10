@@ -5,7 +5,7 @@ import useProfessorData from '../../hooks/useProfessorData'
 import { useToast } from '../../context/ToastContext'
 import {
   PageHeader, Card, CardHeader, Button, Avatar, Badge, Select, Modal, FormField,
-  Input, EmptyState, LoadingState, SearchInput,
+  Input, EmptyState, LoadingState, SearchInput, DatePicker,
 } from '../../components/ui'
 import { fullName, formatDate, classNames } from '../../utils/helpers'
 
@@ -154,7 +154,7 @@ export default function ProfessorAttendance() {
         footer={<><Button variant="secondary" onClick={() => setOpen(false)}>Cancel</Button><Button icon={Save} onClick={save}>Save</Button></>}>
         <form onSubmit={save} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
-            <FormField label="Date"><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></FormField>
+            <FormField label="Date"><DatePicker value={date} onChange={(v) => setDate(v)} /></FormField>
             <FormField label="Topic"><Input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="Lecture topic" /></FormField>
           </div>
           <div className="rounded-xl border border-slate-200">

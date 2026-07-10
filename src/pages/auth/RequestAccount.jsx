@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useParams, Navigate } from 'react-router-dom'
 import axios from 'axios'
+import { DatePicker } from '../../components/ui'
 
 // Rendered at /register/student and /register/professor.
 // The role comes from the URL, so there's no role picker on the page itself.
@@ -106,7 +107,7 @@ export default function RequestAccount() {
 
               <div className="mb-8">
                 <label className="field-label">Date of Birth</label>
-                <input type="date" name="dateOfBirth" value={formData.dateOfBirth} onChange={handleChange} className="field-input" />
+                <DatePicker value={formData.dateOfBirth} onChange={(v) => setFormData((f) => ({ ...f, dateOfBirth: v }))} />
               </div>
 
               <button

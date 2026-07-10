@@ -185,6 +185,44 @@ export function SearchInput({ className, ...props }) {
   )
 }
 
+// ------------------------------------------------------------------ DatePicker
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const DAYS = Array.from({ length: 31 }, (_, i) => i + 1)
+const curYear = new Date().getFullYear()
+const YEARS = Array.from({ length: curYear + 5 - 1919 }, (_, i) => 1920 + i).reverse()
+
+export function DatePicker({ value, onChange, className, placeholder = 'Select date' }) {
+  const parts = value ? value.split('-') : []
+  const year = parts[0] || ''
+  const month = parts[1] || ''
+  const day = parts[2] || ''
+
+  const set = (y, m, d) => {
+    if (!y || !m || !d) { onChange(''); return }
+    const maxDay = new Date(Number(y), Number(m), 0).getDate()
+    const clamped = Math.min(Number(d), maxDay)
+    const iso = `${y}-${String(m).padStart(2, '0')}-${String(clamped).padStart(2, '0')}`
+    if (iso !== value) onChange(iso)
+  }
+
+  return (
+    <div className={classNames('flex gap-2', className)}>
+      <select className="field-input flex-1" value={month} onChange={(e) => set(year, e.target.value, day)}>
+        <option value="">Month</option>
+        {MONTHS.map((name, i) => <option key={i + 1} value={String(i + 1).padStart(2, '0')}>{name}</option>)}
+      </select>
+      <select className="field-input w-20 shrink-0" value={day} onChange={(e) => set(year, month, e.target.value)}>
+        <option value="">Day</option>
+        {DAYS.map((d) => <option key={d} value={String(d).padStart(2, '0')}>{d}</option>)}
+      </select>
+      <select className="field-input flex-1" value={year} onChange={(e) => set(e.target.value, month, day)}>
+        <option value="">Year</option>
+        {YEARS.map((y) => <option key={y} value={String(y)}>{y}</option>)}
+      </select>
+    </div>
+  )
+}
+
 // ------------------------------------------------------------------ Empty / Loading
 export function EmptyState({ icon: Icon = Inbox, title, message, action }) {
   return (

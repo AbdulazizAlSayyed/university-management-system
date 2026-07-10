@@ -30,6 +30,18 @@ export const studentApi = {
   getEnrollments: () => client.get('/student/enrollments').then((r) => r.data),
 }
 
+// ----- Admin API (all under /api/admin) -----
+export const adminApi = {
+  getUsers: (status) => client.get('/admin/users', { params: { status } }).then((r) => r.data),
+  createUser: (data) => client.post('/admin/users', data).then((r) => r.data),
+  approveUser: (id, email) => client.post(`/admin/users/${id}/approve`, { email }).then((r) => r.data),
+  setUserStatus: (id, status) => client.patch(`/admin/users/${id}/status`, { status }).then((r) => r.data),
+  deleteUser: (id) => client.delete(`/admin/users/${id}`).then((r) => r.data),
+  getNotifications: () => client.get('/admin/notifications').then((r) => r.data),
+  markNotificationRead: (id) => client.patch(`/admin/notifications/${id}/read`).then((r) => r.data),
+  markAllNotificationsRead: () => client.patch('/admin/notifications/read-all').then((r) => r.data),
+}
+
 // ----- File upload -----
 export const uploadApi = {
   uploadFile: (file) => {

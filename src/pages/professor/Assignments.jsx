@@ -7,7 +7,7 @@ import { professorApi, uploadApi } from '../../api'
 import { useToast } from '../../context/ToastContext'
 import {
   PageHeader, Card, Button, IconButton, Badge, Modal, ConfirmDialog, FormField,
-  Input, Textarea, Select, EmptyState, FileDropzone, LoadingState, SearchInput,
+  Input, Textarea, Select, EmptyState, FileDropzone, LoadingState, SearchInput, DatePicker,
 } from '../../components/ui'
 import { formatDate, daysUntil } from '../../utils/helpers'
 
@@ -159,7 +159,7 @@ export default function ProfessorAssignments() {
           <FormField label="Title" required><Input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} /></FormField>
           <FormField label="Description"><Textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} /></FormField>
           <div className="grid gap-4 sm:grid-cols-2">
-            <FormField label="Due date" required><Input type="date" value={form.dueDate} onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))} /></FormField>
+            <FormField label="Due date" required><DatePicker value={form.dueDate} onChange={(v) => setForm((f) => ({ ...f, dueDate: v }))} /></FormField>
             <FormField label="Max score"><Input type="number" value={form.maxScore} onChange={(e) => setForm((f) => ({ ...f, maxScore: e.target.value }))} /></FormField>
           </div>
           <FormField label="Attachment (optional)">

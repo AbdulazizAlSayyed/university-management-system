@@ -1,6 +1,7 @@
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const User = require('../models/User');
+const Notification = require('../models/Notification');
 const generateToken = require('../utils/generateToken');
 const { sendResetEmail } = require('../utils/mailer');
 
@@ -23,6 +24,18 @@ exports.requestAccount = async (req, res) => {
       dateOfBirth,
       status: 'requested'
     });
+
+    // Notify all admin accounts
+    const admins = await User.find({ role: 'admin' }).select('_id');
+    if (admins.length > 0) {
+      await Notification.insertMany(admins.map((a) => ({
+        userId: a._id,
+        type: 'request',
+        title: 'New account request',
+        body: `${firstName} ${lastName} has requested a ${role} account.`,
+        link: '/admin/users'
+      })));
+    }
 
     res.status(201).json({
       message: 'Request submitted. An admin will email your login credentials soon.',

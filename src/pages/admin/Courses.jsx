@@ -18,7 +18,7 @@ const prereqIds = (list) => (list || []).map(prereqId).filter(Boolean)
 
 function CourseFormModal({ open, onClose, onSave, initial, professors, courses, saving }) {
   const start = initial
-    ? { ...initial, professorId: initial.professorId?.id || initial.professorId || '', prerequisites: prereqIds(initial.prerequisites) }
+    ? { ...initial, professorId: initial.professorId?.id || initial.professorId?._id || initial.professorId || '', prerequisites: prereqIds(initial.prerequisites) }
     : EMPTY
   const [form, setForm] = useState(start)
   const [errors, setErrors] = useState({})

@@ -48,9 +48,11 @@ export default function StudentCatalog() {
 
   const list = courses.filter((c) => {
     if (c.status !== 'active') return false
-    const mine = !!myEnrollmentFor[c._id || c.id]
+    const cid = c._id || c.id
+    const mine = !!myEnrollmentFor[cid]
+    const missingPrereqs = (c.prerequisites || []).filter((pid) => !completedPrereqs.has(pid.toString()))
     if (filter === 'enrolled' && !mine) return false
-    if (filter === 'available' && mine) return false
+    if (filter === 'available' && (mine || missingPrereqs.length > 0)) return false
     if (search) {
       const q = search.toLowerCase()
       return c.code.toLowerCase().includes(q) || c.name.toLowerCase().includes(q)
@@ -87,30 +89,30 @@ export default function StudentCatalog() {
       {/* Stats bar */}
       <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
         <Card className="flex items-center gap-3 px-4 py-3">
-          <span className="grid h-9 w-9 place-items-center rounded-lg bg-brand-50 text-brand-600">
+          <span className="grid h-9 w-9 place-items-center rounded-lg bg-gradient-to-br from-violet-100 to-fuchsia-100 text-violet-600">
             <BookOpen size={18} />
           </span>
           <div>
-            <p className="text-lg font-bold text-slate-800">{courses.filter((c) => c.status === 'active').length}</p>
-            <p className="text-[11px] font-medium text-slate-400">Total courses</p>
+            <p className="text-lg font-bold text-ink">{courses.filter((c) => c.status === 'active').length}</p>
+            <p className="text-[11px] font-medium text-ink-muted">Total courses</p>
           </div>
         </Card>
         <Card className="flex items-center gap-3 px-4 py-3">
-          <span className="grid h-9 w-9 place-items-center rounded-lg bg-emerald-50 text-emerald-600">
+          <span className="grid h-9 w-9 place-items-center rounded-lg bg-gradient-to-br from-emerald-100 to-green-100 text-emerald-600">
             <Check size={18} />
           </span>
           <div>
-            <p className="text-lg font-bold text-slate-800">{enrolledCount}</p>
-            <p className="text-[11px] font-medium text-slate-400">Enrolled</p>
+            <p className="text-lg font-bold text-ink">{enrolledCount}</p>
+            <p className="text-[11px] font-medium text-ink-muted">Enrolled</p>
           </div>
         </Card>
         <Card className="col-span-2 sm:col-span-1 flex items-center gap-3 px-4 py-3">
-          <span className="grid h-9 w-9 place-items-center rounded-lg bg-amber-50 text-amber-600">
+          <span className="grid h-9 w-9 place-items-center rounded-lg bg-gradient-to-br from-amber-100 to-orange-100 text-amber-600">
             <Hourglass size={18} />
           </span>
           <div>
-            <p className="text-lg font-bold text-slate-800">{waitlistedCount}</p>
-            <p className="text-[11px] font-medium text-slate-400">Waitlisted</p>
+            <p className="text-lg font-bold text-ink">{waitlistedCount}</p>
+            <p className="text-[11px] font-medium text-ink-muted">Waitlisted</p>
           </div>
         </Card>
       </div>
@@ -118,24 +120,24 @@ export default function StudentCatalog() {
       {/* Search + filter bar */}
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative flex-1">
-          <Search size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Search size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-faint" />
           <input
-            className="h-10 w-full rounded-lg border border-slate-300 bg-white pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-400 transition focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25"
+            className="field-input h-10 pl-10"
             placeholder="Search courses by code or name…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
+        <div className="flex gap-1 rounded-xl bg-surface border border-surface-border/60 p-1">
           {FILTERS.map((f) => (
             <button
               key={f.value}
               onClick={() => setFilter(f.value)}
               className={classNames(
-                'rounded-md px-3 py-1.5 text-sm font-medium transition-all',
+                'rounded-lg px-3 py-1.5 text-sm font-medium transition-all',
                 filter === f.value
-                  ? 'bg-white text-brand-700 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700'
+                  ? 'bg-surface-card text-ink shadow-sm'
+                  : 'text-ink-muted hover:text-ink'
               )}
             >
               {f.label}
@@ -147,7 +149,7 @@ export default function StudentCatalog() {
       {/* Course grid */}
       {loading && !loaded ? (
         <div className="flex items-center justify-center py-20">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-surface-border border-t-violet-600" />
         </div>
       ) : list.length === 0 ? (
         <Card>
@@ -199,7 +201,7 @@ export default function StudentCatalog() {
                 footer={
                   <div className="space-y-2">
                     {prereqCodes.length > 0 && (
-                      <p className="flex flex-wrap items-center gap-1 text-xs text-slate-400">
+                      <p className="flex flex-wrap items-center gap-1 text-xs text-ink-faint">
                         <Lock size={11} /> Prerequisite{prereqCodes.length > 1 ? 's' : ''}: {prereqCodes.join(', ')}
                       </p>
                     )}

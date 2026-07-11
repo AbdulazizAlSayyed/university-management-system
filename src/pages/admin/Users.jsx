@@ -148,6 +148,16 @@ export default function AdminUsers() {
     }
   }
 
+  const handleApproveRequest = async (id) => {
+    try {
+      await adminApi.approveRequest(id)
+      toast('Account approved and credentials sent to personal email.', 'success')
+      load()
+    } catch (e) {
+      toast(adminApi.errMsg(e), 'error')
+    }
+  }
+
   const handleSetStatus = async (id, status) => {
     try {
       await adminApi.setUserStatus(id, status)
@@ -179,8 +189,9 @@ export default function AdminUsers() {
           </Select>
           <Select className="sm:w-40" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
             <option value="all">All statuses</option>
-            <option value="active">Active</option>
+            <option value="requested">Requested</option>
             <option value="pending">Pending</option>
+            <option value="active">Active</option>
             <option value="inactive">Inactive</option>
           </Select>
         </div>
@@ -224,7 +235,9 @@ export default function AdminUsers() {
                     <td className="px-5 py-3 text-slate-500">{formatDate(u.createdAt)}</td>
                     <td className="px-5 py-3">
                       <div className="flex items-center justify-end gap-1">
-                        {u.status === 'active' ? (
+                        {u.status === 'requested' ? (
+                          <IconButton icon={UserCheck} title="Approve request" onClick={() => handleApproveRequest(u._id || u.id)} className="hover:text-violet-600" />
+                        ) : u.status === 'active' ? (
                           <IconButton icon={UserX} title="Deactivate" onClick={() => handleSetStatus(u._id || u.id, 'inactive')} className="hover:text-amber-600" />
                         ) : (
                           <IconButton icon={UserCheck} title="Activate" onClick={() => handleSetStatus(u._id || u.id, 'active')} className="hover:text-emerald-600" />

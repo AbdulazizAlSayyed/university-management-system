@@ -126,7 +126,9 @@ export default function StudentClassroom() {
       <div className="mt-6">
         {/* Materials */}
         {tab === 'materials' && (
-          materials.length === 0 ? (
+          loadingClassroom ? (
+            <Card><LoadingState label="Loading materials…" /></Card>
+          ) : materials.length === 0 ? (
             <Card><EmptyState icon={FileText} title="No materials yet" message="Your professor hasn't uploaded materials for this course." /></Card>
           ) : (
             <div className="space-y-5">
@@ -162,7 +164,9 @@ export default function StudentClassroom() {
 
         {/* Announcements */}
         {tab === 'announcements' && (
-          courseAnns.length === 0 ? (
+          loadingClassroom ? (
+            <Card><LoadingState label="Loading announcements…" /></Card>
+          ) : courseAnns.length === 0 ? (
             <Card><EmptyState icon={Megaphone} title="No announcements" message="No course announcements yet." /></Card>
           ) : (
             <div className="space-y-4">
@@ -182,7 +186,9 @@ export default function StudentClassroom() {
 
         {/* Assignments */}
         {tab === 'assignments' && (
-          courseAssignments.length === 0 ? (
+          loadingClassroom ? (
+            <Card><LoadingState label="Loading assignments…" /></Card>
+          ) : courseAssignments.length === 0 ? (
             <Card><EmptyState icon={ClipboardList} title="No assignments" message="No assignments have been posted yet." /></Card>
           ) : (
             <div className="space-y-4">

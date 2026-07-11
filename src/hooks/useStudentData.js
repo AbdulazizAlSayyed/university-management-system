@@ -118,5 +118,27 @@ export default function useStudentData() {
     return studentApi.calculateGrade(courseId)
   }, [])
 
-  return { ...data, enroll, drop, submitAssignment, markNotificationRead, markAllNotificationsRead, calculateGrade }
+  const refresh = useCallback(async () => {
+    CACHE.data = null
+    CACHE.promise = null
+    try {
+      const res = await studentApi.getInit()
+      CACHE.data = {
+        courses: res.courses || [],
+        enrollments: res.enrollments || [],
+        users: res.users || [],
+        assignments: res.assignments || [],
+        grades: res.grades || [],
+        exams: res.exams || [],
+        notifications: res.notifications || [],
+        announcements: res.announcements || [],
+      }
+      if (mounted.current) setData({ ...CACHE.data, loaded: true, loading: false })
+    } catch (e) {
+      console.error('refresh error', e)
+      if (mounted.current) setData((d) => ({ ...d, loaded: false, loading: false }))
+    }
+  }, [])
+
+  return { ...data, enroll, drop, submitAssignment, markNotificationRead, markAllNotificationsRead, calculateGrade, refresh }
 }

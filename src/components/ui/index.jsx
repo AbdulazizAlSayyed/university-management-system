@@ -3,12 +3,12 @@ import { X, Search, Inbox, Loader2, UploadCloud } from 'lucide-react'
 import { classNames } from '../../utils/helpers'
 
 const BTN_VARIANTS = {
-  primary: 'bg-brand-600 text-white hover:bg-brand-700 focus:ring-brand-500/40 shadow-sm',
-  secondary: 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 hover:border-slate-400 focus:ring-slate-400/40',
-  ghost: 'text-slate-600 hover:bg-slate-100 focus:ring-slate-400/30',
-  danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500/40 shadow-sm',
-  success: 'bg-emerald-600 text-white hover:bg-emerald-700 focus:ring-emerald-500/40 shadow-sm',
-  soft: 'bg-brand-50 text-brand-700 hover:bg-brand-100 focus:ring-brand-500/30',
+  primary: 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white hover:from-violet-500 hover:to-fuchsia-500 shadow-md shadow-violet-500/20 focus:ring-violet-500/40',
+  secondary: 'border border-surface-border bg-surface-card text-ink-muted hover:bg-surface-hover hover:text-ink focus:ring-ink-muted/20',
+  ghost: 'text-ink-muted hover:bg-surface-hover hover:text-ink focus:ring-ink-muted/15',
+  danger: 'bg-gradient-to-r from-red-600 to-rose-600 text-white hover:from-red-500 hover:to-rose-500 shadow-md shadow-red-500/20 focus:ring-red-500/40',
+  success: 'bg-gradient-to-r from-emerald-600 to-green-600 text-white hover:from-emerald-500 hover:to-green-500 shadow-md shadow-emerald-500/20 focus:ring-emerald-500/40',
+  soft: 'bg-violet-100 text-violet-700 hover:bg-violet-200 focus:ring-violet-500/30',
 }
 const BTN_SIZES = {
   sm: 'px-3 py-1.5 text-xs gap-1.5',
@@ -19,7 +19,7 @@ export function Button({ variant = 'primary', size = 'md', icon: Icon, children,
   return (
     <button
       className={classNames(
-        'inline-flex items-center justify-center rounded-lg font-semibold transition-all duration-150 focus:outline-none focus:ring-2 disabled:opacity-50 disabled:pointer-events-none active:scale-[0.98]',
+        'inline-flex items-center justify-center rounded-xl font-semibold transition-all duration-150 focus:outline-none focus:ring-2 disabled:opacity-50 disabled:pointer-events-none active:scale-[0.98]',
         BTN_VARIANTS[variant], BTN_SIZES[size], className
       )}
       {...props}
@@ -33,7 +33,7 @@ export function Button({ variant = 'primary', size = 'md', icon: Icon, children,
 export function IconButton({ icon: Icon, className, size = 18, ...props }) {
   return (
     <button
-      className={classNames('inline-flex items-center justify-center rounded-lg p-2 text-slate-400 transition-all duration-150 hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-400/30 active:scale-[0.95]', className)}
+      className={classNames('inline-flex items-center justify-center rounded-xl p-2 text-ink-muted transition-all duration-150 hover:bg-surface-hover hover:text-ink focus:outline-none focus:ring-2 focus:ring-ink-muted/15 active:scale-[0.95]', className)}
       {...props}
     >
       <Icon size={size} />
@@ -43,7 +43,7 @@ export function IconButton({ icon: Icon, className, size = 18, ...props }) {
 
 export function Card({ className, children, ...props }) {
   return (
-    <div className={classNames('rounded-xl bg-white shadow-card ring-1 ring-slate-200/60', className)} {...props}>
+    <div className={classNames('rounded-2xl bg-surface-card shadow-card ring-1 ring-ink-muted/[0.04]', className)} {...props}>
       {children}
     </div>
   )
@@ -51,16 +51,16 @@ export function Card({ className, children, ...props }) {
 
 export function CardHeader({ title, subtitle, action, icon: Icon, className }) {
   return (
-    <div className={classNames('flex items-center justify-between gap-3 border-b border-slate-100/80 px-5 py-4', className)}>
+    <div className={classNames('flex items-center justify-between gap-3 border-b border-surface-border/60 px-5 py-4', className)}>
       <div className="flex items-center gap-3 min-w-0">
         {Icon && (
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-600">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-violet-100 to-fuchsia-100 text-violet-600">
             <Icon size={18} />
           </span>
         )}
         <div className="min-w-0">
-          <h3 className="truncate font-semibold text-slate-800">{title}</h3>
-          {subtitle && <p className="truncate text-sm text-slate-500">{subtitle}</p>}
+          <h3 className="truncate font-semibold text-ink">{title}</h3>
+          {subtitle && <p className="truncate text-sm text-ink-muted">{subtitle}</p>}
         </div>
       </div>
       {action}
@@ -70,23 +70,23 @@ export function CardHeader({ title, subtitle, action, icon: Icon, className }) {
 
 export function StatCard({ icon: Icon, label, value, sub, tone = 'brand' }) {
   const tones = {
-    brand: 'bg-brand-50 text-brand-600',
-    emerald: 'bg-emerald-50 text-emerald-600',
-    amber: 'bg-amber-50 text-amber-600',
-    rose: 'bg-rose-50 text-rose-600',
-    sky: 'bg-sky-50 text-sky-600',
-    violet: 'bg-violet-50 text-violet-600',
+    brand: 'from-violet-100 to-fuchsia-100 text-violet-600',
+    emerald: 'from-emerald-100 to-green-100 text-emerald-600',
+    amber: 'from-amber-100 to-orange-100 text-amber-600',
+    rose: 'from-rose-100 to-red-100 text-rose-600',
+    sky: 'from-sky-100 to-blue-100 text-sky-600',
+    violet: 'from-violet-100 to-purple-100 text-violet-600',
   }
   return (
     <Card className="p-5 transition-all duration-150 hover:shadow-card-hover hover:-translate-y-0.5">
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-sm font-medium text-slate-500">{label}</p>
-          <p className="mt-1.5 text-3xl font-bold tracking-tight text-slate-800">{value}</p>
-          {sub && <p className="mt-1 text-xs text-slate-400">{sub}</p>}
+          <p className="text-sm font-medium text-ink-muted">{label}</p>
+          <p className="mt-1.5 text-3xl font-bold tracking-tight text-ink">{value}</p>
+          {sub && <p className="mt-1 text-xs text-ink-faint">{sub}</p>}
         </div>
         {Icon && (
-          <span className={classNames('grid h-11 w-11 place-items-center rounded-xl ring-1 ring-black/[0.04]', tones[tone])}>
+          <span className={classNames('grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br ring-1 ring-ink-muted/[0.04]', tones[tone])}>
             <Icon size={22} />
           </span>
         )}
@@ -96,8 +96,8 @@ export function StatCard({ icon: Icon, label, value, sub, tone = 'brand' }) {
 }
 
 const BADGE_TONES = {
-  slate: 'bg-slate-100 text-slate-700',
-  brand: 'bg-brand-100 text-brand-700',
+  slate: 'bg-surface-border/60 text-ink-muted',
+  brand: 'bg-violet-100 text-violet-700',
   emerald: 'bg-emerald-100 text-emerald-700',
   amber: 'bg-amber-100 text-amber-700',
   red: 'bg-red-100 text-red-700',
@@ -116,6 +116,7 @@ export function Badge({ tone = 'slate', children, className, dot = false }) {
 export function StatusBadge({ status }) {
   const map = {
     active: { tone: 'emerald', label: 'Active' },
+    requested: { tone: 'violet', label: 'Requested' },
     pending: { tone: 'amber', label: 'Pending' },
     inactive: { tone: 'red', label: 'Inactive' },
     enrolled: { tone: 'emerald', label: 'Enrolled' },
@@ -133,7 +134,7 @@ export function Avatar({ user, size = 'md', className }) {
   const sizes = { xs: 'h-7 w-7 text-xs', sm: 'h-9 w-9 text-sm', md: 'h-10 w-10 text-sm', lg: 'h-14 w-14 text-lg' }
   const inits = user ? `${(user.firstName || '')[0] || ''}${(user.lastName || '')[0] || ''}`.toUpperCase() : '?'
   return (
-    <span className={classNames('inline-grid place-items-center rounded-full font-semibold text-white shrink-0 ring-2 ring-white/80', user?.avatarColor || 'bg-gradient-to-br from-brand-400 to-brand-600', sizes[size], className)}>
+    <span className={classNames('inline-grid place-items-center rounded-full font-semibold text-white shrink-0 ring-2 ring-white/80', user?.avatarColor || 'bg-gradient-to-br from-violet-500 to-fuchsia-600', sizes[size], className)}>
       {inits}
     </span>
   )
@@ -148,7 +149,7 @@ export function FormField({ label, error, required, children, hint, className })
         </label>
       )}
       {children}
-      {hint && !error && <p className="mt-1.5 text-xs text-slate-400">{hint}</p>}
+      {hint && !error && <p className="mt-1.5 text-xs text-ink-faint">{hint}</p>}
       {error && <p className="mt-1.5 text-xs font-medium text-red-500">{error}</p>}
     </div>
   )
@@ -164,7 +165,7 @@ export function Textarea({ error, className, ...props }) {
 
 export function Select({ error, className, children, ...props }) {
   return (
-    <select className={classNames('field-input appearance-none bg-white', error && 'field-input-error', className)} {...props}>
+    <select className={classNames('field-input appearance-none', error && 'field-input-error', className)} {...props}>
       {children}
     </select>
   )
@@ -173,7 +174,7 @@ export function Select({ error, className, children, ...props }) {
 export function SearchInput({ className, ...props }) {
   return (
     <div className={classNames('relative', className)}>
-      <Search size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+      <Search size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-faint" />
       <input className="field-input pl-10" {...props} />
     </div>
   )
@@ -181,10 +182,18 @@ export function SearchInput({ className, ...props }) {
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const DAYS = Array.from({ length: 31 }, (_, i) => i + 1)
-const curYear = new Date().getFullYear()
-const YEARS = Array.from({ length: curYear + 5 - 1919 }, (_, i) => 1920 + i).reverse()
+const today = new Date()
+const curYear = today.getFullYear()
+const curMonth = today.getMonth() + 1
+const curDay = today.getDate()
+const YEARS = Array.from({ length: 6 }, (_, i) => curYear + i)
 
-export function DatePicker({ value, onChange, className }) {
+export function DatePicker({ value, onChange, className, minDate }) {
+  const min = minDate ? new Date(minDate) : today
+  const minY = min.getFullYear()
+  const minM = min.getMonth() + 1
+  const minD = min.getDate()
+
   const [parts, setParts] = useState(() => {
     const p = value ? value.split('-') : []
     return { y: p[0] || '', m: p[1] || '', d: p[2] || '' }
@@ -203,19 +212,29 @@ export function DatePicker({ value, onChange, className }) {
     setParts({ y: p[0] || '', m: p[1] || '', d: p[2] || '' })
   }, [value])
 
+  const selY = Number(parts.y)
+  const selM = Number(parts.m)
+
   return (
     <div className={classNames('flex gap-2', className)}>
       <select className="field-input flex-1" value={parts.m} onChange={(e) => setParts((p) => ({ ...p, m: e.target.value }))}>
         <option value="">Month</option>
-        {MONTH_NAMES.map((name, i) => <option key={i + 1} value={String(i + 1).padStart(2, '0')}>{name}</option>)}
+        {MONTH_NAMES.map((name, i) => {
+          const m = i + 1
+          const disabled = parts.y && (selY < minY || (selY === minY && m < minM))
+          return <option key={m} disabled={disabled} value={String(m).padStart(2, '0')}>{name}</option>
+        })}
       </select>
       <select className="field-input w-20 shrink-0" value={parts.d} onChange={(e) => setParts((p) => ({ ...p, d: e.target.value }))}>
         <option value="">Day</option>
-        {DAYS.map((d) => <option key={d} value={String(d).padStart(2, '0')}>{d}</option>)}
+        {DAYS.map((d) => {
+          const disabled = parts.y && parts.m && (selY < minY || (selY === minY && selM < minM) || (selY === minY && selM === minM && d < minD))
+          return <option key={d} disabled={disabled} value={String(d).padStart(2, '0')}>{d}</option>
+        })}
       </select>
       <select className="field-input flex-1" value={parts.y} onChange={(e) => setParts((p) => ({ ...p, y: e.target.value }))}>
         <option value="">Year</option>
-        {YEARS.map((y) => <option key={y} value={String(y)}>{y}</option>)}
+        {YEARS.map((y) => <option key={y} disabled={y < minY} value={String(y)}>{y}</option>)}
       </select>
     </div>
   )
@@ -224,23 +243,23 @@ export function DatePicker({ value, onChange, className }) {
 export function EmptyState({ icon: Icon = Inbox, title, message, action }) {
   return (
     <div className="flex flex-col items-center justify-center px-6 py-14 text-center">
-      <span className="grid h-14 w-14 place-items-center rounded-full bg-slate-100 text-slate-400">
+      <span className="grid h-14 w-14 place-items-center rounded-full bg-surface text-ink-faint">
         <Icon size={26} />
       </span>
-      <h3 className="mt-4 font-semibold text-slate-700">{title}</h3>
-      {message && <p className="mt-1 max-w-sm text-sm text-slate-500">{message}</p>}
+      <h3 className="mt-4 font-semibold text-ink-muted">{title}</h3>
+      {message && <p className="mt-1 max-w-sm text-sm text-ink-faint">{message}</p>}
       {action && <div className="mt-5">{action}</div>}
     </div>
   )
 }
 
 export function Spinner({ className, size = 22 }) {
-  return <Loader2 size={size} className={classNames('animate-spin text-brand-600', className)} />
+  return <Loader2 size={size} className={classNames('animate-spin text-violet-600', className)} />
 }
 
 export function LoadingState({ label = 'Loading…' }) {
   return (
-    <div className="flex items-center justify-center gap-3 py-16 text-slate-500">
+    <div className="flex items-center justify-center gap-3 py-16 text-ink-muted">
       <Spinner /> <span className="text-sm font-medium">{label}</span>
     </div>
   )
@@ -251,13 +270,13 @@ export function PageHeader({ title, subtitle, actions, icon: Icon }) {
     <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-center gap-3">
         {Icon && (
-          <span className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-brand-600 to-brand-700 text-white shadow-sm">
+          <span className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white shadow-md shadow-violet-500/20">
             <Icon size={22} />
           </span>
         )}
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-slate-800 sm:text-2xl">{title}</h1>
-          {subtitle && <p className="mt-0.5 text-sm text-slate-500">{subtitle}</p>}
+          <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">{title}</h1>
+          {subtitle && <p className="mt-0.5 text-sm text-ink-muted">{subtitle}</p>}
         </div>
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
@@ -266,9 +285,9 @@ export function PageHeader({ title, subtitle, actions, icon: Icon }) {
 }
 
 export function ProgressBar({ value = 0, tone = 'brand', className }) {
-  const tones = { brand: 'bg-brand-500', emerald: 'bg-emerald-500', amber: 'bg-amber-500', red: 'bg-red-500' }
+  const tones = { brand: 'bg-gradient-to-r from-violet-500 to-fuchsia-500', emerald: 'bg-gradient-to-r from-emerald-500 to-green-500', amber: 'bg-gradient-to-r from-amber-500 to-orange-500', red: 'bg-gradient-to-r from-red-500 to-rose-500' }
   return (
-    <div className={classNames('h-2 w-full overflow-hidden rounded-full bg-slate-100', className)}>
+    <div className={classNames('h-2 w-full overflow-hidden rounded-full bg-surface-border/60', className)}>
       <div className={classNames('h-full rounded-full transition-all duration-500 ease-out', tones[tone])} style={{ width: `${Math.min(100, Math.max(0, value))}%` }} />
     </div>
   )
@@ -276,26 +295,26 @@ export function ProgressBar({ value = 0, tone = 'brand', className }) {
 
 export function Tabs({ tabs, active, onChange }) {
   return (
-    <div className="flex gap-1 overflow-x-auto border-b border-slate-200">
+    <div className="flex gap-1 overflow-x-auto border-b border-surface-border/60">
       {tabs.map((t) => (
         <button
           key={t.value}
           onClick={() => onChange(t.value)}
           className={classNames(
             'relative whitespace-nowrap px-4 py-2.5 text-sm font-medium transition-colors',
-            active === t.value ? 'text-brand-700' : 'text-slate-500 hover:text-slate-700'
+            active === t.value ? 'text-violet-700' : 'text-ink-muted hover:text-ink'
           )}
         >
           <span className="flex items-center gap-1.5">
             {t.icon && <t.icon size={16} />}
             {t.label}
             {t.count != null && (
-              <span className={classNames('ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold', active === t.value ? 'bg-brand-100 text-brand-700' : 'bg-slate-100 text-slate-500')}>
+              <span className={classNames('ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold', active === t.value ? 'bg-violet-100 text-violet-700' : 'bg-surface text-ink-muted')}>
                 {t.count}
               </span>
             )}
           </span>
-          {active === t.value && <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-brand-600" />}
+          {active === t.value && <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500" />}
         </button>
       ))}
     </div>
@@ -318,17 +337,17 @@ export function Modal({ open, onClose, title, subtitle, children, footer, size =
   const sizes = { sm: 'max-w-md', md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-4xl' }
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm animate-fade-in" onClick={onClose} />
-      <div className={classNames('relative z-10 w-full animate-scale-in rounded-2xl bg-white shadow-modal', sizes[size])}>
-        <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-4">
+      <div className="absolute inset-0 bg-ink/40 backdrop-blur-sm animate-fade-in" onClick={onClose} />
+      <div className={classNames('relative z-10 w-full animate-scale-in rounded-2xl bg-surface-card shadow-modal', sizes[size])}>
+        <div className="flex items-start justify-between gap-4 border-b border-surface-border/60 px-6 py-4">
           <div>
-            <h3 className="text-lg font-bold text-slate-800">{title}</h3>
-            {subtitle && <p className="mt-0.5 text-sm text-slate-500">{subtitle}</p>}
+            <h3 className="text-lg font-bold text-ink">{title}</h3>
+            {subtitle && <p className="mt-0.5 text-sm text-ink-muted">{subtitle}</p>}
           </div>
           <IconButton icon={X} onClick={onClose} />
         </div>
         <div className="max-h-[70vh] overflow-y-auto px-6 py-5">{children}</div>
-        {footer && <div className="flex justify-end gap-2 border-t border-slate-100 px-6 py-4">{footer}</div>}
+        {footer && <div className="flex justify-end gap-2 border-t border-surface-border/60 px-6 py-4">{footer}</div>}
       </div>
     </div>
   )
@@ -348,7 +367,7 @@ export function ConfirmDialog({ open, onClose, onConfirm, title, message, confir
         </>
       }
     >
-      <p className="text-sm text-slate-600">{message}</p>
+      <p className="text-sm text-ink-muted">{message}</p>
     </Modal>
   )
 }
@@ -356,18 +375,18 @@ export function ConfirmDialog({ open, onClose, onConfirm, title, message, confir
 export function FileDropzone({ onFile, hint = 'PDF, DOCX, PPTX, MP4 — up to 50 MB', fileName, fileObject }) {
   const displayName = fileName || (fileObject?.name ?? '')
   return (
-    <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50/50 px-6 py-8 text-center transition-all duration-150 hover:border-brand-400 hover:bg-brand-50/30">
-      <span className="grid h-11 w-11 place-items-center rounded-full bg-brand-100 text-brand-600">
+    <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-surface-border bg-surface/50 px-6 py-8 text-center transition-all duration-150 hover:border-violet-400 hover:bg-violet-50/30">
+      <span className="grid h-11 w-11 place-items-center rounded-full bg-violet-100 text-violet-600">
         <UploadCloud size={22} />
       </span>
       {displayName ? (
-        <p className="text-sm font-semibold text-slate-700">{displayName}</p>
+        <p className="text-sm font-semibold text-ink">{displayName}</p>
       ) : (
         <>
-          <p className="text-sm font-medium text-slate-600">
-            <span className="text-brand-600">Click to upload</span> or drag and drop
+          <p className="text-sm font-medium text-ink-muted">
+            <span className="text-violet-600">Click to upload</span> or drag and drop
           </p>
-          <p className="text-xs text-slate-400">{hint}</p>
+          <p className="text-xs text-ink-faint">{hint}</p>
         </>
       )}
       <input

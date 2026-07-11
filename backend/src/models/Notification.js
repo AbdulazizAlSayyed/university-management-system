@@ -4,7 +4,7 @@ const { Schema } = mongoose
 const notificationSchema = new Schema(
   {
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
-    type: { type: String, enum: ['material', 'announcement', 'assignment', 'submission', 'grade', 'request', 'activation', 'deactivation', 'enrollment', 'system'], default: 'system' },
+    type: { type: String, enum: ['material', 'announcement', 'assignment', 'submission', 'grade', 'request', 'activation', 'deactivation', 'enrollment', 'exam', 'system'], default: 'system' },
     title: { type: String, required: true },
     body: { type: String, default: '' },
     link: { type: String, default: '' },

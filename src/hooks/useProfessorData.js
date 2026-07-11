@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { professorApi } from '../api'
 
 export default function useProfessorData() {
@@ -7,62 +7,63 @@ export default function useProfessorData() {
     grades: [], exams: [], announcements: [], attendance: [], notifications: [],
     loading: true,
   })
+  const cancelledRef = useRef(false)
 
-  useEffect(() => {
-    let cancelled = false
-    let interval
-
-    async function load() {
-      try {
-        const [coursesRes, enrollmentsRes, assignmentsRes, subsRes, usersRes, attendanceRes, announcementsRes, notifsRes] =
-          await Promise.allSettled([
-            professorApi.getCourses(),
-            professorApi.getEnrollments(),
-            professorApi.getAssignments(),
-            professorApi.getSubmissions(),
-            professorApi.getUsers(),
-            professorApi.getAttendance(),
-            professorApi.getAnnouncements(),
-            professorApi.getNotifications(),
-          ])
-
-        if (cancelled) return
-
-        const courses = coursesRes.value?.courses || []
-        const enrollments = enrollmentsRes.value?.enrollments || []
-        const assignments = assignmentsRes.value?.assignments || []
-        const submissions = subsRes.value?.submissions || []
-        const users = usersRes.value?.users || []
-        const attendance = attendanceRes.value?.records || []
-        const announcements = announcementsRes.value?.announcements || []
-        const notifications = notifsRes.value?.notifications || []
-
-        setData({ courses, enrollments, assignments, submissions, users, attendance, announcements, notifications, loading: false })
-      } catch (e) {
-        console.error('useProfessorData error', e)
-        if (!cancelled) setData((d) => ({ ...d, loading: false }))
-      }
-    }
-
-    async function refresh() {
-      try {
-        const [subsRes, notifsRes] = await Promise.allSettled([
+  const fullRefresh = useCallback(async () => {
+    try {
+      const [coursesRes, enrollmentsRes, assignmentsRes, subsRes, usersRes, attendanceRes, announcementsRes, notifsRes] =
+        await Promise.allSettled([
+          professorApi.getCourses(),
+          professorApi.getEnrollments(),
+          professorApi.getAssignments(),
           professorApi.getSubmissions(),
+          professorApi.getUsers(),
+          professorApi.getAttendance(),
+          professorApi.getAnnouncements(),
           professorApi.getNotifications(),
         ])
-        if (cancelled) return
-        setData((d) => ({
-          ...d,
-          submissions: subsRes.value?.submissions || d.submissions,
-          notifications: notifsRes.value?.notifications || d.notifications,
-        }))
-      } catch { /* ignore */ }
-    }
 
-    load()
-    interval = setInterval(refresh, 30000)
-    return () => { cancelled = true; clearInterval(interval) }
+      if (cancelledRef.current) return
+
+      const courses = coursesRes.value?.courses || []
+      const enrollments = enrollmentsRes.value?.enrollments || []
+      const assignments = assignmentsRes.value?.assignments || []
+      const submissions = subsRes.value?.submissions || []
+      const users = usersRes.value?.users || []
+      const attendance = attendanceRes.value?.records || []
+      const announcements = announcementsRes.value?.announcements || []
+      const notifications = notifsRes.value?.notifications || []
+
+      setData({ courses, enrollments, assignments, submissions, users, attendance, announcements, notifications, loading: false })
+    } catch (e) {
+      console.error('useProfessorData error', e)
+      if (!cancelledRef.current) setData((d) => ({ ...d, loading: false }))
+    }
   }, [])
+
+  const refreshNotifs = useCallback(async () => {
+    try {
+      const [subsRes, notifsRes] = await Promise.allSettled([
+        professorApi.getSubmissions(),
+        professorApi.getNotifications(),
+      ])
+      if (cancelledRef.current) return
+      setData((d) => ({
+        ...d,
+        submissions: subsRes.value?.submissions || d.submissions,
+        notifications: notifsRes.value?.notifications || d.notifications,
+      }))
+    } catch { /* ignore */ }
+  }, [])
+
+  useEffect(() => {
+    cancelledRef.current = false
+
+    fullRefresh()
+
+    const interval = setInterval(refreshNotifs, 30000)
+    return () => { cancelledRef.current = true; clearInterval(interval) }
+  }, [fullRefresh, refreshNotifs])
 
   const saveAttendance = useCallback(async (courseId, attData) => {
     const result = await professorApi.saveAttendance(courseId, attData)
@@ -101,5 +102,5 @@ export default function useProfessorData() {
     }))
   }, [])
 
-  return { ...data, saveAttendance, addAnnouncement, deleteAnnouncement, markNotificationRead, markAllNotificationsRead }
+  return { ...data, saveAttendance, addAnnouncement, deleteAnnouncement, markNotificationRead, markAllNotificationsRead, refresh: refreshNotifs }
 }

@@ -44,7 +44,7 @@ function ExamFormModal({ open, onClose, onSave, initial, courses, saving }) {
           <FormField label="Type"><Select value={form.type} onChange={set('type')}><option>Quiz</option><option>Midterm</option><option>Final</option></Select></FormField>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <FormField label="Date" required error={errors.date}><Input type="date" value={form.date} onChange={(v) => setForm((f) => ({ ...f, date: v.target.value }))} /></FormField>
+          <FormField label="Date" required error={errors.date}><Input type="date" min={new Date().toISOString().slice(0, 10)} value={form.date} onChange={(v) => setForm((f) => ({ ...f, date: v.target.value }))} /></FormField>
           <FormField label="Room" required error={errors.room}><Input value={form.room} onChange={set('room')} placeholder="Exam Hall 1" error={errors.room} /></FormField>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">

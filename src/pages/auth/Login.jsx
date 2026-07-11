@@ -1,11 +1,24 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import {
-  GraduationCap, Mail, Lock, Eye, EyeOff, ShieldCheck, BookOpen, Users, ArrowRight,
-} from 'lucide-react'
+import { Mail, Lock, Eye, EyeOff, ArrowRight, Sparkles, GraduationCap } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
-import { Button, FormField, Input } from '../../components/ui'
+
+const ORBS = [
+  'top-[10%] left-[15%] w-72 h-72 bg-violet-500/15 blur-3xl',
+  'top-[60%] right-[10%] w-96 h-96 bg-fuchsia-500/10 blur-3xl',
+  'bottom-[15%] left-[50%] w-80 h-80 bg-violet-400/10 blur-3xl',
+  'top-[35%] right-[35%] w-64 h-64 bg-fuchsia-400/8 blur-3xl',
+]
+
+const DOTS = [
+  { top: '22%', left: '25%', delay: '0s' },
+  { top: '70%', left: '75%', delay: '1s' },
+  { top: '45%', left: '85%', delay: '0.5s' },
+  { top: '15%', left: '70%', delay: '1.5s' },
+  { top: '80%', left: '20%', delay: '2s' },
+  { top: '55%', left: '8%', delay: '0.8s' },
+]
 
 export default function Login() {
   const { login } = useAuth()
@@ -16,6 +29,9 @@ export default function Login() {
   const [showPw, setShowPw] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => { setVisible(true) }, [])
 
   const doLogin = async (email, password) => {
     setError('')
@@ -41,89 +57,82 @@ export default function Login() {
   }
 
   return (
-    <div className="grid min-h-screen lg:grid-cols-2">
-      <div className="relative hidden overflow-hidden bg-gradient-to-br from-brand-700 via-brand-600 to-indigo-800 lg:flex lg:flex-col lg:justify-between lg:p-12">
-        <div className="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-white/10 blur-2xl" />
-        <div className="absolute -bottom-24 -left-16 h-80 w-80 rounded-full bg-indigo-400/20 blur-3xl" />
+    <div className="relative min-h-screen overflow-hidden bg-[#1a1a2e] flex items-center justify-center px-4 py-10">
+      {/* Animated gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-[#1a1a2e] via-[#1f1f38] to-[#2a1a3e] animate-gradient-drift bg-[length:200%_200%]" />
 
-        <div className="relative flex items-center gap-3 text-white">
-          <span className="grid h-11 w-11 place-items-center rounded-xl bg-white/15 backdrop-blur">
-            <GraduationCap size={26} />
-          </span>
-          <div>
-            <p className="text-lg font-extrabold tracking-tight">UniHub</p>
-            <p className="text-xs text-white/70">University Management System</p>
-          </div>
-        </div>
+      {/* Grid pattern */}
+      <div
+        className="absolute inset-0 opacity-[0.03]"
+        style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '40px 40px' }}
+      />
 
-        <div className="relative text-white">
-          <h1 className="text-4xl font-extrabold leading-tight tracking-tight">
-            Run your entire<br />campus from one place.
-          </h1>
-          <p className="mt-4 max-w-md text-white/80">
-            A unified portal for administrators, professors, and students — courses,
-            enrollment, classrooms, grades, exams, and announcements.
-          </p>
-          <div className="mt-8 space-y-3">
-            {[
-              { icon: ShieldCheck, text: 'Role-based access & account activation' },
-              { icon: BookOpen, text: 'Classrooms, materials, assignments & grading' },
-              { icon: Users, text: 'Enrollment, transcripts & exam scheduling' },
-            ].map((f, i) => (
-              <div key={i} className="flex items-center gap-3 text-sm text-white/90">
-                <span className="grid h-8 w-8 place-items-center rounded-lg bg-white/15">
-                  <f.icon size={16} />
-                </span>
-                {f.text}
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* Floating orbs */}
+      {ORBS.map((cls, i) => (
+        <div key={i} className={`absolute rounded-full ${cls} animate-float-slow`} style={{ animationDelay: `${i * 1.5}s` }} />
+      ))}
 
-        <p className="relative text-xs text-white/50">© 2026 UniHub</p>
-      </div>
+      {/* Floating dots */}
+      {DOTS.map((dot, i) => (
+        <div
+          key={i}
+          className="absolute h-1.5 w-1.5 rounded-full bg-white/20 animate-pulse-soft"
+          style={{ top: dot.top, left: dot.left, animationDelay: dot.delay }}
+        />
+      ))}
 
-      <div className="flex items-center justify-center px-5 py-10 sm:px-8">
-        <div className="w-full max-w-md">
-          <div className="mb-8 flex items-center gap-2.5 lg:hidden">
-            <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-brand-600 to-brand-700 text-white shadow-sm">
-              <GraduationCap size={22} />
+      {/* Card */}
+      <div
+        className={`relative w-full max-w-md transition-all duration-1000 ease-out ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'}`}
+      >
+        <div className="rounded-3xl bg-white px-8 py-10 sm:px-10 sm:py-12 shadow-2xl">
+          {/* Brand */}
+          <div className={`text-center transition-all duration-700 delay-200 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}>
+            <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white shadow-lg shadow-violet-500/20 mb-4">
+              <GraduationCap size={26} />
             </span>
-            <div>
-              <p className="text-lg font-extrabold tracking-tight text-slate-800">UniHub</p>
-              <p className="text-xs text-slate-400">University Management</p>
-            </div>
+            <h1 className="text-2xl font-bold tracking-tight text-[#1a1a2e]">UniHub</h1>
+            <p className="mt-1 text-sm text-[#6b6580]">University Management System</p>
           </div>
 
-          <h2 className="text-2xl font-bold tracking-tight text-slate-800">Sign in to your account</h2>
-          <p className="mt-1 text-sm text-slate-500">Enter your credentials to access the portal.</p>
+          {/* Divider */}
+          <div className={`my-6 flex items-center gap-3 transition-all duration-700 delay-300 ${visible ? 'opacity-100' : 'opacity-0'}`}>
+            <div className="h-px flex-1 bg-[#e8e4e0]" />
+            <span className="text-[11px] font-semibold uppercase tracking-widest text-[#9b94a8]">Sign in</span>
+            <div className="h-px flex-1 bg-[#e8e4e0]" />
+          </div>
 
+          {/* Error */}
           {error && (
-            <div className="mt-5 animate-fade-in rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-              {error}
+            <div className={`mb-5 transition-all duration-300 ${visible ? 'opacity-100' : 'opacity-0'}`}>
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                {error}
+              </div>
             </div>
           )}
 
-          <form onSubmit={onSubmit} className="mt-6 space-y-4" autoComplete="off">
-            <FormField label="Email or Username">
-              <div className="relative">
-                <Mail size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <Input
-                  className="pl-9"
+          <form onSubmit={onSubmit} className="space-y-4" autoComplete="off">
+            <div className={`transition-all duration-500 delay-[400ms] ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+              <label className="block mb-1.5 text-sm font-medium text-[#6b6580]">Email or Username</label>
+              <div className="relative group">
+                <Mail size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9b94a8] transition-colors group-focus-within:text-violet-600" />
+                <input
+                  className="w-full rounded-xl border border-[#e8e4e0] bg-white px-10 py-3 text-sm text-[#1a1a2e] placeholder:text-[#9b94a8] outline-none transition-all duration-200 focus:border-violet-400 focus:shadow-[0_0_20px_-4px_rgba(99,102,241,0.12)]"
                   placeholder="you@university.edu"
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
                   autoComplete="new-email"
                 />
               </div>
-            </FormField>
+            </div>
 
-            <FormField label="Password">
-              <div className="relative">
-                <Lock size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <Input
+            <div className={`transition-all duration-500 delay-500 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+              <label className="block mb-1.5 text-sm font-medium text-[#6b6580]">Password</label>
+              <div className="relative group">
+                <Lock size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9b94a8] transition-colors group-focus-within:text-violet-600" />
+                <input
                   type={showPw ? 'text' : 'password'}
-                  className="px-9"
+                  className="w-full rounded-xl border border-[#e8e4e0] bg-white px-10 py-3 text-sm text-[#1a1a2e] placeholder:text-[#9b94a8] outline-none transition-all duration-200 focus:border-violet-400 focus:shadow-[0_0_20px_-4px_rgba(99,102,241,0.12)]"
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -132,40 +141,61 @@ export default function Login() {
                 <button
                   type="button"
                   onClick={() => setShowPw((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#9b94a8] transition hover:text-[#6b6580]"
                 >
                   {showPw ? <EyeOff size={17} /> : <Eye size={17} />}
                 </button>
               </div>
-            </FormField>
+            </div>
 
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 text-sm text-slate-600">
-                <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
+            <div className={`flex items-center justify-between transition-all duration-500 delay-[600ms] ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+              <label className="flex items-center gap-2 text-sm text-[#6b6580] cursor-pointer">
+                <input type="checkbox" className="h-4 w-4 rounded border-[#e8e4e0] text-violet-600 focus:ring-violet-500/30 cursor-pointer" />
                 Remember me
               </label>
-              <Link to="/forgot-password" className="text-sm font-semibold text-brand-600 transition hover:text-brand-700">
+              <Link to="/forgot-password" className="text-sm font-medium text-violet-600 hover:text-violet-700 transition-colors">
                 Forgot password?
               </Link>
             </div>
 
-            <Button type="submit" className="w-full" size="lg" disabled={loading}>
-              {loading ? 'Signing in…' : 'Sign in'}
-              {!loading && <ArrowRight size={18} />}
-            </Button>
+            <div className={`transition-all duration-500 delay-700 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+              <button
+                type="submit"
+                disabled={loading}
+                className="relative overflow-hidden w-full rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-5 py-3 text-sm font-semibold text-white shadow-md shadow-violet-500/20 transition-all duration-200 hover:shadow-lg hover:shadow-violet-500/30 hover:from-violet-500 hover:to-fuchsia-500 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
+              >
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="relative inline-flex h-4 w-4">
+                      <span className="absolute inset-0 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                    </span>
+                    Signing in…
+                  </span>
+                ) : (
+                  <span className="flex items-center justify-center gap-2">
+                    Sign in
+                    <ArrowRight size={18} />
+                  </span>
+                )}
+              </button>
+            </div>
           </form>
 
-          <p className="mt-5 text-center text-sm text-slate-600">
+          <div className={`mt-6 text-center text-sm text-[#6b6580] transition-all duration-500 delay-800 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
             Don't have an account?{' '}
-            <Link to="/register/student" className="font-semibold text-brand-600 transition hover:text-brand-700">
+            <Link to="/register/student" className="font-medium text-violet-600 hover:text-violet-700 transition-colors">
               Register as Student
             </Link>
             {' '}or{' '}
-            <Link to="/register/professor" className="font-semibold text-brand-600 transition hover:text-brand-700">
+            <Link to="/register/professor" className="font-medium text-violet-600 hover:text-violet-700 transition-colors">
               Professor
             </Link>
-          </p>
+          </div>
         </div>
+
+        <p className={`mt-6 text-center text-xs text-white/20 transition-all duration-500 delay-[900ms] ${visible ? 'opacity-100' : 'opacity-0'}`}>
+          &copy; 2026 UniHub
+        </p>
       </div>
     </div>
   )

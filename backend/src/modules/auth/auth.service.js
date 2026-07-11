@@ -5,7 +5,7 @@ import Notification from '../../models/Notification.js'
 import ApiError from '../../utils/ApiError.js'
 import { generateToken } from '../../utils/generateToken.js'
 import { notifyAdmins } from '../../utils/notify.js'
-import { sendResetEmail } from '../../utils/mailer.js'
+import { sendCredentialsEmail, sendResetEmail } from '../../utils/mailer.js'
 
 export async function registerUser(data) {
   const { firstName, lastName, email, password, role } = data
@@ -103,14 +103,15 @@ export async function requestAccount(data) {
   })
 
   return {
-    message: 'Request submitted. An admin will email your login credentials soon.',
+    message: 'Request submitted. You will receive your login credentials once an admin approves your account.',
     requestId: request._id,
   }
 }
 
 export async function forgotPassword(email) {
   if (!email) throw new ApiError(422, 'Email is required')
-  const user = await User.findOne({ email: String(email).toLowerCase() })
+  const id = String(email).toLowerCase()
+  const user = await User.findOne({ $or: [{ email: id }, { personalEmail: id }] })
   if (!user) {
     // Don't reveal whether the email exists
     return
@@ -121,8 +122,9 @@ export async function forgotPassword(email) {
   user.resetPasswordExpires = Date.now() + 30 * 60 * 1000
   await user.save()
 
+  const recipient = user.personalEmail || user.email
   const resetLink = `${process.env.CLIENT_URL}/reset-password/${resetToken}`
-  await sendResetEmail({ to: user.email, resetLink })
+  await sendResetEmail({ to: recipient, resetLink })
 }
 
 export async function resetPassword(token, password) {

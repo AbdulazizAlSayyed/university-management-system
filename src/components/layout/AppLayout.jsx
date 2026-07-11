@@ -6,7 +6,7 @@ import Topbar from './Topbar'
 export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-surface">
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="lg:pl-72">
         <Topbar onMenu={() => setSidebarOpen(true)} />

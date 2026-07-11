@@ -53,33 +53,33 @@ export default function Topbar({ onMenu }) {
   }
 
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-slate-200 bg-white/90 px-4 backdrop-blur sm:px-6">
-      <button className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 lg:hidden" onClick={onMenu}>
+    <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-surface-border/60 bg-surface-card/90 px-4 backdrop-blur sm:px-6">
+      <button className="rounded-xl p-2 text-ink-muted hover:bg-surface-hover lg:hidden" onClick={onMenu}>
         <Menu size={22} />
       </button>
 
       <div className="hidden sm:block">
-        <p className="text-sm font-semibold text-slate-700">Welcome back, {currentUser.firstName}</p>
-        <p className="text-xs text-slate-400">{ROLE_LABEL[currentUser.role]} · Fall 2026</p>
+        <p className="text-sm font-semibold text-ink">Welcome back, {currentUser.firstName}</p>
+        <p className="text-xs text-ink-muted">{ROLE_LABEL[currentUser.role]} · Fall 2026</p>
       </div>
 
       <div className="ml-auto flex items-center gap-1.5">
         <div className="relative" ref={notifRef}>
-          <button onClick={() => setNotifOpen((v) => !v)} className="relative rounded-lg p-2 text-slate-500 transition hover:bg-slate-100">
+          <button onClick={() => setNotifOpen((v) => !v)} className="relative rounded-xl p-2 text-ink-muted transition hover:bg-surface-hover">
             <Bell size={20} />
             {unread > 0 && (
-              <span className="absolute right-1 top-1 grid h-4 min-w-4 place-items-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">{unread}</span>
+              <span className="absolute right-1 top-1 grid h-4 min-w-4 place-items-center rounded-full bg-gradient-to-r from-red-500 to-rose-500 px-1 text-[10px] font-bold text-white shadow-sm">{unread}</span>
             )}
           </button>
 
           {notifOpen && (
-            <div className="absolute right-0 mt-2 w-[min(20rem,calc(100vw-2rem))] origin-top-right animate-fade-in rounded-xl border border-slate-200 bg-white shadow-xl sm:w-96">
-              <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-                <p className="font-semibold text-slate-800">Notifications</p>
+            <div className="absolute right-0 mt-2 w-[min(20rem,calc(100vw-2rem))] origin-top-right animate-fade-in rounded-2xl border border-surface-border bg-surface-card shadow-elevated sm:w-96">
+              <div className="flex items-center justify-between border-b border-surface-border/60 px-4 py-3">
+                <p className="font-semibold text-ink">Notifications</p>
                 {unread > 0 && (
                   <button
                     onClick={markAll}
-                    className="flex items-center gap-1 text-xs font-semibold text-brand-600 hover:text-brand-700"
+                    className="flex items-center gap-1 text-xs font-semibold text-violet-600 hover:text-violet-700"
                   >
                     <CheckCheck size={14} /> Mark all read
                   </button>
@@ -87,32 +87,23 @@ export default function Topbar({ onMenu }) {
               </div>
               <div className="max-h-96 overflow-y-auto">
                 {myNotifs.length === 0 && (
-                  <p className="px-4 py-10 text-center text-sm text-slate-400">You're all caught up.</p>
+                  <p className="px-4 py-10 text-center text-sm text-ink-muted">You're all caught up.</p>
                 )}
                 {myNotifs.map((n) => (
                   <button
                     key={n._id || n.id}
                     onClick={() => openNotif(n)}
                     className={classNames(
-                      'flex w-full items-start gap-3 border-b border-slate-50 px-4 py-3 text-left transition hover:bg-slate-50',
-                      !n.read && 'bg-brand-50/40'
+                      'flex w-full items-start gap-3 border-b border-surface-border/40 px-4 py-3 text-left transition hover:bg-surface-hover',
+                      !n.read && 'bg-violet-50/40'
                     )}
                   >
-                    <span className={classNames('mt-1.5 h-2 w-2 shrink-0 rounded-full', n.read ? 'bg-slate-300' : 'bg-brand-500')} />
+                    <span className={classNames('mt-1.5 h-2 w-2 shrink-0 rounded-full', n.read ? 'bg-surface-border' : 'bg-violet-500')} />
                     <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-semibold text-slate-700">{n.title}</span>
-                      <span className="block truncate text-xs text-slate-500">{n.body}</span>
-                      <span className="mt-0.5 block text-[11px] text-slate-400">{timeAgo(n.createdAt)}</span>
+                      <span className="block text-sm font-semibold text-ink">{n.title}</span>
+                      <span className="block truncate text-xs text-ink-muted">{n.body}</span>
+                      <span className="mt-0.5 block text-[11px] text-ink-faint">{timeAgo(n.createdAt)}</span>
                     </span>
-                    {!n.read && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); openNotif({ ...n, read: true }) }}
-                        className="mt-1 shrink-0 rounded p-1 text-xs text-slate-400 opacity-0 transition hover:text-brand-600 group-hover:opacity-100"
-                        title="Mark as read"
-                      >
-                        <CheckCheck size={14} />
-                      </button>
-                    )}
                   </button>
                 ))}
               </div>
@@ -121,23 +112,23 @@ export default function Topbar({ onMenu }) {
         </div>
 
         <div className="relative" ref={menuRef}>
-          <button onClick={() => setMenuOpen((v) => !v)} className="flex items-center gap-2 rounded-lg py-1.5 pl-1.5 pr-2 transition hover:bg-slate-100">
+          <button onClick={() => setMenuOpen((v) => !v)} className="flex items-center gap-2 rounded-xl py-1.5 pl-1.5 pr-2 transition hover:bg-surface-hover">
             <Avatar user={currentUser} size="sm" />
             <span className="hidden text-left sm:block">
-              <span className="block text-sm font-semibold leading-tight text-slate-700">{fullName(currentUser)}</span>
-              <span className="block text-xs leading-tight text-slate-400">{ROLE_LABEL[currentUser.role]}</span>
+              <span className="block text-sm font-semibold leading-tight text-ink">{fullName(currentUser)}</span>
+              <span className="block text-xs leading-tight text-ink-muted">{ROLE_LABEL[currentUser.role]}</span>
             </span>
-            <ChevronDown size={16} className="text-slate-400" />
+            <ChevronDown size={16} className="text-ink-muted" />
           </button>
 
           {menuOpen && (
-            <div className="absolute right-0 mt-2 w-56 origin-top-right animate-fade-in rounded-xl border border-slate-200 bg-white py-1.5 shadow-xl">
-              <div className="border-b border-slate-100 px-4 py-3">
-                <p className="text-sm font-semibold text-slate-700">{fullName(currentUser)}</p>
-                <p className="truncate text-xs text-slate-400">{currentUser.email}</p>
+            <div className="absolute right-0 mt-2 w-56 origin-top-right animate-fade-in rounded-2xl border border-surface-border bg-surface-card py-1.5 shadow-elevated">
+              <div className="border-b border-surface-border/60 px-4 py-3">
+                <p className="text-sm font-semibold text-ink">{fullName(currentUser)}</p>
+                <p className="truncate text-xs text-ink-muted">{currentUser.email}</p>
               </div>
               <button onClick={() => { setMenuOpen(false); navigate(PROFILE_LINK[currentUser.role]) }}
-                className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50">
+                className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-ink-muted transition hover:bg-surface-hover hover:text-ink">
                 <User size={17} /> My Profile
               </button>
               <button onClick={logout} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-50">

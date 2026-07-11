@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, CheckCheck, GraduationCap, ClipboardList, FileText, Megaphone, Info } from 'lucide-react'
+import { Bell, CheckCheck, GraduationCap, ClipboardList, FileText, Megaphone, Info, CalendarClock } from 'lucide-react'
 import useProfessorData from '../../hooks/useProfessorData'
 import { PageHeader, Card, Button, Tabs, EmptyState } from '../../components/ui'
 import { timeAgo, classNames } from '../../utils/helpers'
@@ -11,6 +11,7 @@ const TYPE_ICON = {
   material: FileText,
   announcement: Megaphone,
   submission: FileText,
+  exam: CalendarClock,
   system: Info,
 }
 const TYPE_TONE = {
@@ -19,13 +20,16 @@ const TYPE_TONE = {
   material: 'bg-brand-50 text-brand-600',
   announcement: 'bg-violet-50 text-violet-600',
   submission: 'bg-sky-50 text-sky-600',
+  exam: 'bg-red-50 text-red-600',
   system: 'bg-slate-100 text-slate-600',
 }
 
 export default function ProfessorNotifications() {
-  const { notifications, markNotificationRead, markAllNotificationsRead } = useProfessorData()
+  const { notifications, markNotificationRead, markAllNotificationsRead, refresh } = useProfessorData()
   const navigate = useNavigate()
   const [tab, setTab] = useState('all')
+
+  useEffect(() => { refresh() }, [refresh])
 
   const mine = [...notifications].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
   const unread = mine.filter((n) => !n.read)

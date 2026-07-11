@@ -12,7 +12,7 @@ import Notification from '../../models/Notification.js'
 import ApiError from '../../utils/ApiError.js'
 import { logAudit } from '../../utils/audit.js'
 import { notify, notifyAdmins } from '../../utils/notify.js'
-import { sendCredentialsEmail } from '../../utils/mailer.js'
+import { sendCredentialsEmail, sendNotificationEmail } from '../../utils/mailer.js'
 
 const name = (u) => (u ? `${u.firstName} ${u.lastName}` : 'unknown')
 const UNIVERSITY_DOMAIN = process.env.UNIVERSITY_DOMAIN || 'unihub.edu'
@@ -158,10 +158,9 @@ export async function approveRequest(userId, actorId) {
 
   const email = await findAvailableEmail(user.firstName, user.lastName)
   const tempPassword = generateTempPassword()
-  const hashedPassword = await bcrypt.hash(tempPassword, 10)
 
   user.email = email
-  user.password = hashedPassword
+  user.password = tempPassword
   user.status = 'active'
   await user.save()
 
@@ -366,6 +365,30 @@ export async function listExams() {
 }
 export async function createExam(data, actorId) {
   const exam = await Exam.create(data)
+  await exam.populate({ path: 'courseId', select: 'code name professorId' })
+
+  const courseId = exam.courseId?._id || exam.courseId
+  if (courseId) {
+    const course = exam.courseId
+    const professorId = course.professorId
+    const dateStr = exam.date ? new Date(exam.date).toISOString().slice(0, 10) : 'TBD'
+
+    const notifications = [{ userId: professorId, type: 'exam', title: 'Exam scheduled', body: `${course.code}: "${exam.title}" on ${dateStr}`, link: `/professor/courses/${courseId}` }]
+
+    const enrollments = await Enrollment.find({ courseId, status: 'enrolled' })
+    enrollments.forEach((e) => {
+      notifications.push({ userId: e.studentId, type: 'exam', title: 'Exam scheduled', body: `${course.code}: "${exam.title}" on ${dateStr}`, link: `/student/courses/${courseId}` })
+    })
+
+    await Notification.insertMany(notifications)
+
+    const allIds = [professorId, ...enrollments.map((e) => e.studentId)]
+    const recipients = await User.find({ _id: { $in: allIds } }).select('personalEmail email')
+    recipients.forEach((u) => {
+      sendNotificationEmail({ to: u.personalEmail || u.email, subject: 'Exam scheduled', body: `${course.code}: "${exam.title}" is scheduled on ${dateStr}.`, link: `/courses/${courseId}` })
+    })
+  }
+
   await logAudit(actorId, 'create', 'Exam', `Scheduled exam "${exam.title}"`)
   return exam.populate({ path: 'courseId', select: 'code name' })
 }

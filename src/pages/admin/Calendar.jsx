@@ -114,7 +114,7 @@ export default function AdminCalendar() {
         <form onSubmit={submit} className="space-y-4">
           <FormField label="Title" required><Input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="Registration Deadline" /></FormField>
           <div className="grid gap-4 sm:grid-cols-2">
-            <FormField label="Date" required><Input type="date" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} /></FormField>
+            <FormField label="Date" required><Input type="date" min={new Date().toISOString().slice(0, 10)} value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} /></FormField>
             <FormField label="Type">
               <Select value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}>
                 <option value="semester">Semester</option>

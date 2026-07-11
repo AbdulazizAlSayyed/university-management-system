@@ -10,7 +10,7 @@ import useProfessorData from '../../hooks/useProfessorData'
 import { useToast } from '../../context/ToastContext'
 import {
   Card, CardHeader, Button, IconButton, Badge, StatusBadge, Avatar, Tabs, Modal,
-  ConfirmDialog, FormField, Input, Textarea, Select, EmptyState, FileDropzone, DatePicker,
+  ConfirmDialog, FormField, Input, Textarea, Select, EmptyState, LoadingState, FileDropzone, DatePicker,
 } from '../../components/ui'
 import {
   fullName, formatDate, timeAgo, fileTypeMeta, scoreToLetter, gradeColor, classNames,
@@ -25,12 +25,13 @@ export default function ProfessorClassroom() {
   const [tab, setTab] = useState('materials')
 
   const roster = useMemo(() => {
-    const ids = new Set(data.enrollments.filter((e) => e.courseId === courseId && e.status === 'enrolled').map((e) => e.studentId))
-    return data.users.filter((u) => ids.has(u.id))
-  }, [data.enrollments, data.users, courseId])
+    const ids = new Set(api.enrollments.filter((e) => e.courseId === courseId && e.status === 'enrolled').map((e) => e.studentId))
+    return api.users.filter((u) => ids.has(u.id))
+  }, [api.enrollments, api.users, courseId])
 
   const courseAssignments = api.assignments.filter((a) => a.courseId === courseId)
 
+  if (api.loading) return <LoadingState label="Loading course…" />
   if (!course) {
     return (
       <Card><EmptyState icon={FileText} title="Course not found" message="This course may have been removed." action={<Button onClick={() => navigate('/professor/courses')}>Back to courses</Button>} /></Card>
@@ -164,7 +165,7 @@ function MaterialsTab({ course }) {
     }
   }
 
-  if (loading) return <Card><EmptyState icon={FileText} title="Loading materials..." message="Please wait" /></Card>
+  if (loading) return <LoadingState label="Loading materials…" />
 
   return (
     <div>
@@ -269,6 +270,7 @@ function AnnouncementsTab({ course }) {
   const [open, setOpen] = useState(false)
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
+  const [posting, setPosting] = useState(false)
   const [form, setForm] = useState({ title: '', body: '' })
 
   useEffect(() => {
@@ -286,6 +288,7 @@ function AnnouncementsTab({ course }) {
   const submit = async (e) => {
     e.preventDefault()
     if (!form.title || !form.body) return toast('Enter a title and message.', 'error')
+    setPosting(true)
     try {
       await professorApi.addAnnouncement(course.id, { title: form.title, body: form.body })
       const data = await professorApi.getCourseAnnouncements(course.id)
@@ -298,6 +301,8 @@ function AnnouncementsTab({ course }) {
       setOpen(false)
     } catch (err) {
       toast(err?.response?.data?.message || 'Failed to post.', 'error')
+    } finally {
+      setPosting(false)
     }
   }
 
@@ -311,7 +316,7 @@ function AnnouncementsTab({ course }) {
     }
   }
 
-  if (loading) return <Card><EmptyState icon={Megaphone} title="Loading announcements..." message="Please wait" /></Card>
+  if (loading) return <LoadingState label="Loading announcements…" />
 
   return (
     <div>
@@ -335,7 +340,7 @@ function AnnouncementsTab({ course }) {
         </div>
       )}
       <Modal open={open} onClose={() => setOpen(false)} title={`Announcement — ${course.code}`} subtitle="Visible to enrolled students only."
-        footer={<><Button variant="secondary" onClick={() => setOpen(false)}>Cancel</Button><Button onClick={submit}>Post</Button></>}>
+        footer={<><Button variant="secondary" onClick={() => setOpen(false)}>Cancel</Button><Button onClick={submit} disabled={posting}>{posting ? 'Posting…' : 'Post'}</Button></>}>
         <form onSubmit={submit} className="space-y-4">
           <FormField label="Title" required><Input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} /></FormField>
           <FormField label="Message" required><Textarea value={form.body} onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))} className="min-h-[120px]" /></FormField>
@@ -406,7 +411,7 @@ function AssignmentsTab({ course }) {
     }
   }
 
-  if (loading) return <Card><EmptyState icon={ClipboardList} title="Loading assignments..." message="Please wait" /></Card>
+  if (loading) return <LoadingState label="Loading assignments…" />
 
   return (
     <div>
@@ -415,14 +420,16 @@ function AssignmentsTab({ course }) {
         <Card><EmptyState icon={ClipboardList} title="No assignments" message="Create assignments with deadlines for this course." action={<Button icon={Plus} onClick={() => setOpen(true)}>Create assignment</Button>} /></Card>
       ) : (
         <div className="space-y-4">
-          {items.map((a) => (
-            <Card key={a.id} className="p-5">
-                  <div className="flex-wrap flex items-start justify-between gap-4">
-                <div className="min-w-0 flex-1">
-                  <h3 className="font-bold text-slate-800">{a.title}</h3>
-                  <p className="mt-1 line-clamp-2 text-sm text-slate-500">{a.description}</p>
-                  <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-                      <Badge tone="brand"><Clock size={11} /> Due {formatDate(a.dueDate)}</Badge>
+          {items.map((a) => {
+            const d = Math.round((new Date(a.dueDate) - new Date()) / 86400000)
+            return (
+              <Card key={a.id} className="p-5">
+                <div className="flex-wrap flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-bold text-slate-800">{a.title}</h3>
+                    <p className="mt-1 line-clamp-2 text-sm text-slate-500">{a.description}</p>
+                    <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                      <Badge tone={d < 0 ? 'slate' : d <= 3 ? 'red' : 'amber'}><Clock size={11} /> Due {formatDate(a.dueDate)}</Badge>
                       <Badge tone="slate">{a.maxScore} pts</Badge>
                       {a.attachedFileUrl && (
                         <button onClick={() => window.open(uploadApi.getFileUrl(a.attachedFileUrl), '_blank')} className="flex items-center gap-1 rounded bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 hover:bg-slate-200">
@@ -430,11 +437,12 @@ function AssignmentsTab({ course }) {
                         </button>
                       )}
                     </div>
+                  </div>
+                  <IconButton icon={Trash2} title="Delete" onClick={() => setDel(a)} className="hover:text-red-600" />
                 </div>
-                <IconButton icon={Trash2} title="Delete" onClick={() => setDel(a)} className="hover:text-red-600" />
-              </div>
-            </Card>
-          ))}
+              </Card>
+            )
+          })}
         </div>
       )}
       <Modal open={open} onClose={() => setOpen(false)} title={`New Assignment — ${course.code}`} size="lg"
@@ -520,7 +528,7 @@ function AttendanceTab({ course, roster }) {
     return Math.round((p / rec.records.length) * 100)
   }
 
-  if (loading) return <Card><EmptyState icon={CalendarCheck} title="Loading attendance..." message="Please wait" /></Card>
+  if (loading) return <LoadingState label="Loading attendance…" />
 
   return (
     <div>
@@ -627,7 +635,7 @@ function GradesTab({ course, roster }) {
     }
   }
 
-  if (loading) return <Card><EmptyState icon={GraduationCap} title="Loading grades..." message="Please wait" /></Card>
+  if (loading) return <LoadingState label="Loading grades…" />
   if (roster.length === 0) return <Card><EmptyState icon={GraduationCap} title="No students" message="Enroll students to enter grades." /></Card>
 
   return (

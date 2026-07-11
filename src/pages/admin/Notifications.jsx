@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, CheckCheck, Users, Info, CheckCircle2, UserX } from 'lucide-react'
+import { Bell, CheckCheck, Users, Info, CheckCircle2, UserX, CalendarClock } from 'lucide-react'
 import { adminApi } from '../../api'
 import { PageHeader, Card, Button, Tabs, EmptyState } from '../../components/ui'
 import { timeAgo, classNames } from '../../utils/helpers'
@@ -9,12 +9,14 @@ const TYPE_ICON = {
   request: Users,
   activation: CheckCircle2,
   deactivation: UserX,
+  exam: CalendarClock,
   system: Info,
 }
 const TYPE_TONE = {
   request: 'bg-amber-50 text-amber-600',
   activation: 'bg-emerald-50 text-emerald-600',
   deactivation: 'bg-red-50 text-red-600',
+  exam: 'bg-red-50 text-red-600',
   system: 'bg-slate-100 text-slate-600',
 }
 

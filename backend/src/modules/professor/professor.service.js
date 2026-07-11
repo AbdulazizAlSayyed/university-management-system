@@ -202,8 +202,15 @@ export async function addAnnouncement(professorId, courseId, data) {
     body: `${course.code}: ${data.title}`,
     link: `/student/courses/${courseId}?tab=announcements`,
   }))
-  if (notifications.length > 0) {
-    await Notification.insertMany(notifications)
+  notifications.push({
+    userId: professorId,
+    type: 'announcement',
+    title: 'Announcement posted',
+    body: `Your announcement "${data.title}" was posted to ${course.code}.`,
+    link: `/professor/courses/${courseId}?tab=announcements`,
+  })
+  await Notification.insertMany(notifications)
+  if (enrollments.length > 0) {
     const studentIds = enrollments.map((e) => e.studentId)
     const students = await User.find({ _id: { $in: studentIds } }).select('personalEmail email')
     students.forEach((s) => {

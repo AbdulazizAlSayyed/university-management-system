@@ -268,6 +268,10 @@ export async function submitAssignment(userId, assignmentId, fileName) {
   const assignment = await Assignment.findById(assignmentId)
   if (!assignment) throw { status: 404, message: 'Assignment not found' }
 
+  if (new Date(assignment.deadline) < new Date()) {
+    throw { status: 400, message: 'This assignment is past its due date and no longer accepts submissions.' }
+  }
+
   const enrollment = await Enrollment.findOne({ studentId: userId, courseId: assignment.courseId, status: 'enrolled' })
   if (!enrollment) throw { status: 403, message: 'Not enrolled in this course' }
 

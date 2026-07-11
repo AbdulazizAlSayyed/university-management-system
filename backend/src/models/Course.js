@@ -24,7 +24,7 @@ courseSchema.index({ professorId: 1 })
 
 courseSchema.set('toJSON', {
   virtuals: true,
-  transform(doc, ret) { delete ret.id; delete ret.__v; return ret },
+  transform(doc, ret) { delete ret.__v; return ret },
 })
 
 export default mongoose.model('Course', courseSchema)
